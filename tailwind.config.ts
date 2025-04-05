@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,17 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				hershield: {
+					red: '#B02A37',
+					gradient: {
+						start: '#B02A37',
+						end: '#F9D5DA'
+					}
 				}
+			},
+			backgroundImage: {
+				'gradient-hershield': 'linear-gradient(to bottom, #B02A37, #F9D5DA)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -84,11 +95,19 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-emergency': {
+					'0%, 100%': { transform: 'scale(1)' },
+					'50%': { transform: 'scale(1.05)' },
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-emergency': 'pulse-emergency 2s infinite'
+			},
+			fontFamily: {
+				cursive: ['var(--font-cursive)', 'cursive'],
 			}
 		}
 	},
