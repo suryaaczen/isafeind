@@ -87,7 +87,7 @@ const Auth = () => {
       <div className="max-w-md w-full space-y-8 p-8 rounded-2xl bg-white/90 backdrop-blur-sm shadow-xl">
         <div className="text-center">
           <h1 className="text-5xl font-cursive font-bold text-hershield-red">
-            HerShield
+            iSafe
           </h1>
           <p className="mt-2 text-gray-600 italic">Guardian Alert System</p>
           

@@ -32,7 +32,7 @@ const Index = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-hershield p-4">
       <div className="max-w-md w-full space-y-8 text-center">
         <h1 className="text-6xl font-cursive font-bold text-white">
-          HerShield
+          iSafe
         </h1>
         <p className="text-xl text-white/80 italic">Guardian Alert System</p>
         

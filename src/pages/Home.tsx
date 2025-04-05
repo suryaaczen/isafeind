@@ -65,7 +65,7 @@ const Home = () => {
   
   const showSafetyCheckNotification = () => {
     if ("Notification" in window && Notification.permission === "granted") {
-      const notification = new Notification("HerShield Safety Check", {
+      const notification = new Notification("iSafe Safety Check", {
         body: "Are you safe? If not, press SOS button or dial 100",
         icon: "/favicon.ico"
       });
@@ -252,7 +252,7 @@ I need help immediately!
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 inset-x-0 bg-black/80 backdrop-blur-md text-white">
         <div className="py-4 text-center">
-          <h2 className="font-cursive text-white text-lg">HerShield</h2>
+          <h2 className="font-cursive text-white text-lg">iSafe</h2>
         </div>
       </nav>
       
