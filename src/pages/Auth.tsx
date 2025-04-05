@@ -40,14 +40,18 @@ const Auth = () => {
     // Process user data from OTPless
     console.log("OTPless response:", otplessUser);
     
-    if (otplessUser && otplessUser.data && otplessUser.data.mobile) {
+    if (otplessUser && otplessUser.token) {
       // Save user data to localStorage
-      localStorage.setItem('user', JSON.stringify({
-        mobile: otplessUser.data.mobile,
-        email: otplessUser.data.email || '',
-        name: otplessUser.data.name || 'User',
+      // Check if email data exists
+      const userData = {
+        token: otplessUser.token,
+        mobile: otplessUser.data?.mobile || '',
+        email: otplessUser.email?.email || '',
+        name: otplessUser.email?.name || 'User',
         timestamp: new Date().toISOString()
-      }));
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
       
       toast.success("Authentication successful!");
       
