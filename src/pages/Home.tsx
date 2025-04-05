@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Users, Bell, FileText, AlertTriangle } from 'lucide-react';
@@ -112,71 +111,6 @@ const Home = () => {
     }
   };
   
-  const shareLocation = async () => {
-    try {
-      const position = await getCurrentPosition();
-      
-      const { latitude, longitude, accuracy, altitude, speed } = position.coords;
-      
-      // Create location message with details
-      const locationMessage = `
-🚨 EMERGENCY ALERT 🚨
-My current location:
-📍 https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}&zoom=16
-📱 Accuracy: ${accuracy ? Math.round(accuracy) + 'm' : 'Unknown'}
-🏔️ Altitude: ${altitude ? Math.round(altitude) + 'm' : 'Unknown'}
-⚡ Speed: ${speed ? Math.round(speed * 3.6) + 'km/h' : 'Unknown'}
-⏰ Time: ${new Date().toLocaleTimeString()}
-      `;
-      
-      // Try to share via Web Share API first
-      if (navigator.share) {
-        await navigator.share({
-          title: "Emergency Location",
-          text: locationMessage,
-        });
-      } else {
-        // Fallback to clipboard
-        await navigator.clipboard.writeText(locationMessage);
-        
-        // Show sharing options
-        const shareVia = window.confirm(
-          "Location copied to clipboard! Share via:\n\n" +
-          "- Click OK for WhatsApp\n" +
-          "- Click Cancel for SMS"
-        );
-        
-        if (shareVia) {
-          // Open WhatsApp
-          window.open(`https://wa.me/?text=${encodeURIComponent(locationMessage)}`, "_blank");
-        } else {
-          // Open SMS
-          window.open(`sms:?body=${encodeURIComponent(locationMessage)}`, "_blank");
-        }
-      }
-      
-      toast.success("Location shared successfully!");
-    } catch (error) {
-      console.error("Error sharing location:", error);
-      toast.error("Failed to share location. Please try again.");
-    }
-  };
-
-  const getCurrentPosition = (): Promise<GeolocationPosition> => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error("Geolocation is not supported by this browser"));
-        return;
-      }
-      
-      navigator.geolocation.getCurrentPosition(
-        position => resolve(position),
-        error => reject(error),
-        { enableHighAccuracy: true }
-      );
-    });
-  };
-  
   const handleSOS = async () => {
     try {
       // Dial emergency number
@@ -222,6 +156,21 @@ I need help immediately!
     window.open("https://tally.so/r/nG5oGZ", "_blank");
   };
   
+  const getCurrentPosition = (): Promise<GeolocationPosition> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation is not supported by this browser"));
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(
+        position => resolve(position),
+        error => reject(error),
+        { enableHighAccuracy: true }
+      );
+    });
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-hershield">
       {/* Header */}
@@ -248,7 +197,7 @@ I need help immediately!
       <main className="px-6 py-4">
         <div className="grid grid-cols-2 gap-4">
           {/* Location Sharing */}
-          <button onClick={shareLocation} className="feature-card">
+          <button onClick={() => navigate('/location-sharing')} className="feature-card">
             <MapPin className="feature-icon h-8 w-8" />
             <span className="font-cursive text-gray-800 text-lg">Location Sharing</span>
           </button>
@@ -289,7 +238,7 @@ I need help immediately!
       </main>
       
       {/* SOS Button */}
-      <div className="fixed bottom-32 inset-x-0 flex justify-center">
+      <div className="fixed bottom-20 inset-x-0 flex justify-center">
         <button 
           onClick={handleSOS}
           className="h-20 w-20 rounded-full bg-red-600 flex items-center justify-center shadow-lg animate-pulse-emergency"
@@ -302,13 +251,9 @@ I need help immediately!
       
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 inset-x-0 bg-black/80 backdrop-blur-md text-white">
-        <Tabs defaultValue="home" className="w-full">
-          <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="home" className="py-4">Home</TabsTrigger>
-            <TabsTrigger value="profile" className="py-4">Profile</TabsTrigger>
-            <TabsTrigger value="alerts" className="py-4">Alerts</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="py-4 text-center">
+          <h2 className="font-cursive text-white text-lg">HerShield</h2>
+        </div>
       </nav>
       
       {/* Trusted Contacts Modal */}

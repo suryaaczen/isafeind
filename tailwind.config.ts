@@ -108,6 +108,7 @@ export default {
 			},
 			fontFamily: {
 				cursive: ['var(--font-cursive)', 'cursive'],
+				sans: ['Poppins', 'sans-serif'],
 			}
 		}
 	},
