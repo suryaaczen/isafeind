@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -106,7 +107,6 @@ export default {
 				'pulse-emergency': 'pulse-emergency 2s infinite'
 			},
 			fontFamily: {
-				cursive: ['var(--font-cursive)', 'cursive'],
 				sans: ['Poppins', 'sans-serif'],
 			}
 		}

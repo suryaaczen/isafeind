@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Users, Bell, FileText, AlertTriangle } from 'lucide-react';
+import { MapPin, Users, Bell, FileText, AlertTriangle, LifeBuoy } from 'lucide-react';
 import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 import TrustedContactsModal from '@/components/TrustedContactsModal';
@@ -10,8 +11,6 @@ const Home = () => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [sirenPlaying, setSirenPlaying] = useState(false);
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   
   useEffect(() => {
     // Check if user is authenticated
@@ -23,23 +22,11 @@ const Home = () => {
     
     setUser(JSON.parse(userData));
     
-    // Create audio element for siren
-    const sirenAudio = new Audio('/siren.mp3');
-    sirenAudio.loop = true;
-    setAudio(sirenAudio);
-    
     // Setup periodic safety check notifications
     setupSafetyCheckNotifications();
     
     // Request permission for notifications
     requestNotificationPermission();
-    
-    return () => {
-      if (audio) {
-        audio.pause();
-        audio.currentTime = 0;
-      }
-    };
   }, [navigate]);
   
   const requestNotificationPermission = async () => {
@@ -90,25 +77,8 @@ const Home = () => {
     );
   };
   
-  const toggleSiren = () => {
-    if (!audio) return;
-    
-    if (sirenPlaying) {
-      audio.pause();
-      audio.currentTime = 0;
-      setSirenPlaying(false);
-      toast.info("Siren stopped");
-    } else {
-      audio.play()
-        .then(() => {
-          setSirenPlaying(true);
-          toast.warning("Siren activated!");
-        })
-        .catch(err => {
-          console.error("Error playing siren:", err);
-          toast.error("Could not play siren. Please try again.");
-        });
-    }
+  const openSupportChat = () => {
+    window.open("https://isafebot.netlify.app", "_blank");
   };
   
   const handleSOS = async () => {
@@ -177,7 +147,7 @@ I need help immediately!
       <header className="pt-8 pb-4 px-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-cursive text-white font-bold">Hello,</h1>
+            <h1 className="text-4xl font-bold text-white">Hello,</h1>
             <p className="text-white/80 italic">Fearless, connected, protected</p>
           </div>
           <Button variant="outline" size="icon" className="bg-white/20 backdrop-blur-sm border-white/30 text-white">
@@ -186,7 +156,7 @@ I need help immediately!
         </div>
         
         <div className="mt-6">
-          <h2 className="text-3xl font-cursive text-white">
+          <h2 className="text-3xl text-white">
             Stay connected,<br />
             stay <span className="text-white/80">protected.</span>
           </h2>
@@ -199,40 +169,40 @@ I need help immediately!
           {/* Location Sharing */}
           <button onClick={() => navigate('/location-sharing')} className="feature-card">
             <MapPin className="feature-icon h-8 w-8" />
-            <span className="font-cursive text-gray-800 text-lg">Location Sharing</span>
+            <span className="text-gray-800 text-lg">Location Sharing</span>
           </button>
           
           {/* Trusted Contacts */}
           <button onClick={() => setIsModalOpen(true)} className="feature-card">
             <Users className="feature-icon h-8 w-8" />
-            <span className="font-cursive text-gray-800 text-lg">Trusted Contact</span>
+            <span className="text-gray-800 text-lg">Trusted Contact</span>
           </button>
           
           {/* Community */}
           <button onClick={openCommunity} className="feature-card">
             <Users className="feature-icon h-8 w-8" />
-            <span className="font-cursive text-gray-800 text-lg">Community</span>
+            <span className="text-gray-800 text-lg">Community</span>
           </button>
           
-          {/* Siren */}
+          {/* Support - Replaces Siren */}
           <button 
-            onClick={toggleSiren} 
-            className={`feature-card ${sirenPlaying ? 'bg-red-100' : ''}`}
+            onClick={openSupportChat} 
+            className="feature-card"
           >
-            <AlertTriangle className={`feature-icon h-8 w-8 ${sirenPlaying ? 'text-red-500 animate-pulse' : ''}`} />
-            <span className="font-cursive text-gray-800 text-lg">Siren</span>
+            <LifeBuoy className="feature-icon h-8 w-8" />
+            <span className="text-gray-800 text-lg">Support</span>
           </button>
           
           {/* Locate Me */}
           <button onClick={openLocateMe} className="feature-card">
             <MapPin className="feature-icon h-8 w-8" />
-            <span className="font-cursive text-gray-800 text-lg">Locate Me</span>
+            <span className="text-gray-800 text-lg">Locate Me</span>
           </button>
           
           {/* FIR */}
           <button onClick={openFIR} className="feature-card">
             <FileText className="feature-icon h-8 w-8" />
-            <span className="font-cursive text-gray-800 text-lg">FIR</span>
+            <span className="text-gray-800 text-lg">FIR</span>
           </button>
         </div>
       </main>
@@ -252,7 +222,7 @@ I need help immediately!
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 inset-x-0 bg-black/80 backdrop-blur-md text-white">
         <div className="py-4 text-center">
-          <h2 className="font-cursive text-white text-lg">iSafe</h2>
+          <h2 className="text-white text-lg">iSafe</h2>
         </div>
       </nav>
       
