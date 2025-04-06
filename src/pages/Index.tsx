@@ -46,7 +46,7 @@ const Index = () => {
             <ul className="text-white/80 text-left mt-2 space-y-1">
               <li>• Emergency location sharing</li>
               <li>• Trusted contacts alerts</li>
-              <li>• Emergency siren</li>
+              <li>• Support</li>
               <li>• Quick access to FIR filing</li>
               <li>• Community support</li>
               <li>• One-tap SOS</li>
