@@ -74,42 +74,24 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
     toast("Requesting contacts permission...");
     
     setTimeout(() => {
-      toast.success("Permission granted, importing contacts...");
+      toast.success("Permission granted");
       
-      // Simulate import delay
-      setTimeout(() => {
-        toast("Select contacts to import", {
-          description: "This would show your device contacts in a native app",
-          action: {
-            label: "Import 3 contacts",
-            onClick: () => {
-              // Get simulated contacts
-              const importedContacts = simulateContactImport();
-              
-              // Combine with existing contacts, avoiding duplicates by phone number
-              const newContacts = [...contacts];
-              
-              // Only add contacts that don't already exist
-              let addedCount = 0;
-              for (const importedContact of importedContacts) {
-                if (!checkDuplicatePhone(importedContact.phone)) {
-                  newContacts.push(importedContact);
-                  addedCount++;
-                }
-              }
-              
-              setContacts(newContacts);
-              saveContactsToStorage(newContacts);
-              
-              if (addedCount > 0) {
-                toast.success(`${addedCount} contacts imported successfully!`);
-              } else {
-                toast.info("No new contacts were imported (all were duplicates)");
-              }
+      toast("Select contacts to import", {
+        description: "In a native app, you would see your device contacts here",
+        action: {
+          label: "Import Contacts",
+          onClick: () => {
+            toast.info("No contacts were imported - this is just a demonstration");
+            
+            // Note: simulateContactImport now returns an empty array
+            const importedContacts = simulateContactImport();
+            
+            if (importedContacts.length === 0) {
+              toast.info("No contacts were imported. In a real app, you would select contacts from your device.");
             }
           }
-        });
-      }, 1000);
+        }
+      });
     }, 800);
   };
   
