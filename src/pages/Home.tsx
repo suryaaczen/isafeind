@@ -147,7 +147,9 @@ I need help immediately!
       <header className="pt-8 pb-4 px-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold text-white">Hello,</h1>
+            <h1 className="text-4xl font-bold text-white">
+              Hello, {user?.name || 'User'}
+            </h1>
             <p className="text-white/80 italic">Fearless, connected, protected</p>
           </div>
           <Button variant="outline" size="icon" className="bg-white/20 backdrop-blur-sm border-white/30 text-white">

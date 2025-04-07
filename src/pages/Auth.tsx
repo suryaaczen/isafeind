@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -47,7 +46,7 @@ const Auth = () => {
         token: otplessUser.token,
         mobile: otplessUser.data?.mobile || '',
         email: otplessUser.email?.email || '',
-        name: otplessUser.email?.name || 'User',
+        name: otplessUser.email?.name || otplessUser.data?.name || 'User',
         timestamp: new Date().toISOString()
       };
       
@@ -55,10 +54,8 @@ const Auth = () => {
       
       toast.success("Authentication successful!");
       
-      // Navigate to home page
-      setTimeout(() => {
-        navigate('/home');
-      }, 1000);
+      // Navigate to home page immediately
+      navigate('/home');
     } else {
       toast.error("Authentication failed. Please try again.");
       setLoading(false);

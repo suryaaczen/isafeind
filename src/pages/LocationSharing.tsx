@@ -26,12 +26,21 @@ const LocationSharing = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [watchId, setWatchId] = useState<number | null>(null);
 
   useEffect(() => {
-    getLocation();
+    // Start watching position when component mounts
+    startWatchingPosition();
+    
+    // Clean up the watcher when component unmounts
+    return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
   }, []);
 
-  const getLocation = () => {
+  const startWatchingPosition = () => {
     setLoading(true);
     setError(null);
 
@@ -41,7 +50,8 @@ const LocationSharing = () => {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    // Watch position continuously instead of just getting it once
+    const id = navigator.geolocation.watchPosition(
       (position) => {
         setLocation({
           latitude: position.coords.latitude,
@@ -57,8 +67,24 @@ const LocationSharing = () => {
         setError(`Error getting location: ${error.message}`);
         setLoading(false);
       },
-      { enableHighAccuracy: true }
+      { 
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000
+      }
     );
+    
+    setWatchId(id);
+  };
+
+  const getLocation = () => {
+    // Clear previous watch
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+    
+    // Start watching again
+    startWatchingPosition();
   };
 
   const shareLocation = async () => {
