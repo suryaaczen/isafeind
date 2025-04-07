@@ -33,7 +33,13 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
   });
   
   useEffect(() => {
-    // Load contacts from localStorage
+    // Load contacts from localStorage when modal opens
+    if (isOpen) {
+      loadContacts();
+    }
+  }, [isOpen]);
+  
+  const loadContacts = () => {
     const savedContacts = localStorage.getItem('trustedContacts');
     if (savedContacts) {
       try {
@@ -43,18 +49,40 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
         setContacts([]);
       }
     }
-  }, [isOpen]);
+  };
+  
+  const validateIndianPhoneNumber = (phone: string): boolean => {
+    // Remove any non-digit characters
+    const cleanPhone = phone.replace(/\D/g, '');
+    
+    // Check if it's exactly 10 digits and starts with a valid Indian prefix
+    return cleanPhone.length === 10 && /^[6-9]\d{9}$/.test(cleanPhone);
+  };
+  
+  const isDuplicatePhone = (phone: string): boolean => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    return contacts.some(contact => contact.phone.replace(/\D/g, '') === cleanPhone);
+  };
   
   const handleSave = () => {
-    // Validate
-    if (!newContact.name.trim() || !newContact.phone.trim()) {
-      toast.error("Please enter both name and phone number");
+    // Validate name
+    if (!newContact.name.trim()) {
+      toast.error("Please enter contact name");
       return;
     }
     
-    // Validate phone number (basic check)
-    if (!/^\d{10,15}$/.test(newContact.phone.replace(/[^0-9]/g, ''))) {
-      toast.error("Please enter a valid phone number");
+    // Clean phone number
+    const cleanPhone = newContact.phone.replace(/\D/g, '');
+    
+    // Validate Indian phone number format
+    if (!validateIndianPhoneNumber(cleanPhone)) {
+      toast.error("Please enter a valid 10-digit Indian phone number");
+      return;
+    }
+    
+    // Check for duplicate phone number
+    if (isDuplicatePhone(cleanPhone)) {
+      toast.error("This phone number is already in your contacts");
       return;
     }
     
@@ -64,7 +92,7 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
       {
         id: Date.now().toString(),
         name: newContact.name.trim(),
-        phone: newContact.phone.trim()
+        phone: cleanPhone
       }
     ];
     
@@ -103,27 +131,34 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
           action: {
             label: "Import 3 contacts",
             onClick: () => {
-              // Sample contacts
+              // Sample contacts with Indian phone numbers
               const importedContacts = [
                 { id: `imported-${Date.now()}-1`, name: "Alice Johnson", phone: "9876543210" },
                 { id: `imported-${Date.now()}-2`, name: "Bob Smith", phone: "8765432109" },
                 { id: `imported-${Date.now()}-3`, name: "Carol Williams", phone: "7654321098" }
               ];
               
-              // Combine with existing contacts, avoiding duplicates
+              // Combine with existing contacts, avoiding duplicates by phone number
               const newContacts = [
-                ...contacts,
-                ...importedContacts.filter(
-                  importedContact => !contacts.some(
-                    contact => contact.phone === importedContact.phone
-                  )
-                )
+                ...contacts
               ];
+              
+              // Only add contacts that don't already exist
+              for (const importedContact of importedContacts) {
+                if (!isDuplicatePhone(importedContact.phone)) {
+                  newContacts.push(importedContact);
+                }
+              }
               
               setContacts(newContacts);
               localStorage.setItem('trustedContacts', JSON.stringify(newContacts));
               
-              toast.success("3 contacts imported successfully!");
+              const addedCount = newContacts.length - contacts.length;
+              if (addedCount > 0) {
+                toast.success(`${addedCount} contacts imported successfully!`);
+              } else {
+                toast.info("No new contacts were imported (all were duplicates)");
+              }
             }
           }
         });
@@ -131,11 +166,20 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
     }, 800);
   };
   
+  const formatPhoneNumber = (phone: string): string => {
+    // Format as XXX-XXX-XXXX for display
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 10) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+    }
+    return phone;
+  };
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-cursive text-2xl text-hershield-red">Trusted Contacts</DialogTitle>
+          <DialogTitle className="text-2xl text-hershield-red">Trusted Contacts</DialogTitle>
           <DialogDescription>
             Add people who should be notified in case of emergency.
           </DialogDescription>
@@ -164,12 +208,18 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
                   <Phone className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
                   <Input 
                     id="phone" 
-                    placeholder="Phone number" 
+                    placeholder="10-digit number" 
                     className="pl-8"
                     value={newContact.phone}
-                    onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
+                    onChange={(e) => {
+                      // Allow only numbers and basic formatting
+                      const value = e.target.value.replace(/[^\d-]/g, '');
+                      setNewContact({...newContact, phone: value});
+                    }}
+                    maxLength={10}
                   />
                 </div>
+                <p className="text-xs text-gray-500">Enter 10-digit Indian mobile number</p>
               </div>
             </div>
             
@@ -206,7 +256,7 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
                 >
                   <div>
                     <p className="font-medium">{contact.name}</p>
-                    <p className="text-sm text-gray-500">{contact.phone}</p>
+                    <p className="text-sm text-gray-500">{formatPhoneNumber(contact.phone)}</p>
                   </div>
                   <Button 
                     variant="ghost" 
