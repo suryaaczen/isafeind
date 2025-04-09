@@ -34,19 +34,20 @@ export const useSafetyCheck = () => {
   
   const showSafetyCheckNotification = () => {
     if ("Notification" in window && Notification.permission === "granted") {
+      // Create a basic notification without the actions property
       const notification = new Notification("iSafe Safety Check", {
-        body: "Are you safe? Select Yes or No",
+        body: "Are you safe? Click to respond",
         icon: "/favicon.ico",
-        actions: [
-          { action: 'yes', title: 'Yes' },
-          { action: 'no', title: 'No' }
-        ],
         requireInteraction: true
       });
       
+      // Handle click event without accessing the action property
       notification.onclick = (event) => {
-        if (event.action === 'no') {
-          // Dial emergency number
+        // Show a confirmation dialog when notification is clicked
+        const isSafe = window.confirm("Are you safe? Press OK if yes, Cancel if no.");
+        
+        if (!isSafe) {
+          // Dial emergency number if not safe
           window.location.href = "tel:100";
         } else {
           window.focus();
