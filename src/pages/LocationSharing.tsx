@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Share2 } from 'lucide-react';
+import { formatLocationForSharing } from '@/utils/locationUtils';
 
 interface LocationData {
   latitude: number | null;
@@ -50,7 +50,7 @@ const LocationSharing = () => {
       return;
     }
 
-    // Watch position continuously instead of just getting it once
+    // Watch position continuously
     const id = navigator.geolocation.watchPosition(
       (position) => {
         setLocation({
@@ -93,21 +93,24 @@ const LocationSharing = () => {
       return;
     }
 
-    // Create Google Maps link
-    const googleMapsUrl = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
-    
-    // Create location message with details
-    const locationMessage = `
-🚨 EMERGENCY ALERT 🚨
-My current location:
-📍 ${googleMapsUrl}
-📱 Accuracy: ${location.accuracy ? Math.round(location.accuracy) + 'm' : 'Unknown'}
-🏔️ Altitude: ${location.altitude ? Math.round(location.altitude) + 'm' : 'Unknown'}
-⚡ Speed: ${location.speed ? Math.round(location.speed * 3.6) + 'km/h' : 'Unknown'}
-⏰ Time: ${new Date().toLocaleTimeString()}
-    `;
-    
     try {
+      // Create a GeolocationPosition-like object from our location state
+      const positionData = {
+        coords: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy: location.accuracy || 0,
+          altitude: location.altitude,
+          speed: location.speed,
+          altitudeAccuracy: null,
+          heading: null
+        },
+        timestamp: location.timestamp || Date.now()
+      };
+
+      // Format location data using the existing utility function
+      const locationMessage = formatLocationForSharing(positionData as GeolocationPosition);
+      
       // Try to share via Web Share API first
       if (navigator.share) {
         await navigator.share({
