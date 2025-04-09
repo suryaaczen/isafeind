@@ -17,6 +17,19 @@ const config: CapacitorConfig = {
       androidSpinnerStyle: "large",
       spinnerColor: "#FFFFFF",
     },
+    LocalNotifications: {
+      smallIcon: "ic_stat_icon_config_sample",
+      iconColor: "#B02A37",
+      sound: "beep.wav",
+    },
+  },
+  android: {
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: true
+  },
+  ios: {
+    contentInset: "always"
   }
 };
 

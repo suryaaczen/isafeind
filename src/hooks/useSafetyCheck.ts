@@ -35,12 +35,23 @@ export const useSafetyCheck = () => {
   const showSafetyCheckNotification = () => {
     if ("Notification" in window && Notification.permission === "granted") {
       const notification = new Notification("iSafe Safety Check", {
-        body: "Are you safe? If not, press SOS button or dial 100",
-        icon: "/favicon.ico"
+        body: "Are you safe? Select Yes or No",
+        icon: "/favicon.ico",
+        actions: [
+          { action: 'yes', title: 'Yes' },
+          { action: 'no', title: 'No' }
+        ],
+        requireInteraction: true
       });
       
-      notification.onclick = () => {
-        window.focus();
+      notification.onclick = (event) => {
+        if (event.action === 'no') {
+          // Dial emergency number
+          window.location.href = "tel:100";
+        } else {
+          window.focus();
+          toast.success("Glad you're safe!");
+        }
       };
     }
     
@@ -48,14 +59,26 @@ export const useSafetyCheck = () => {
     toast(
       "Safety Check",
       {
-        description: "Are you safe? If not, press SOS or dial 100",
+        description: "Are you safe?",
+        duration: 50000,
         action: {
-          label: "I'm safe",
+          label: "Yes",
           onClick: () => {
             toast.success("Glad you're safe!");
+          }
+        },
+        cancel: {
+          label: "No",
+          onClick: () => {
+            // Dial emergency number
+            window.location.href = "tel:100";
           }
         }
       }
     );
+  };
+
+  return {
+    showSafetyCheckNotification
   };
 };
