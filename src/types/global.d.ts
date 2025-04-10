@@ -9,6 +9,10 @@ declare global {
     webkitSpeechRecognition?: typeof SpeechRecognition;
     Capacitor?: {
       isNativePlatform: () => boolean;
+      Plugins?: {
+        Contacts?: any;
+        SMS?: any;
+      };
     };
   }
 }

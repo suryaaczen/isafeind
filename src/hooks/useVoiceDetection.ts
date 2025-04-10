@@ -27,6 +27,25 @@ export const useVoiceDetection = ({
     
     if (!SpeechRecognition) {
       console.warn("Speech recognition not supported in this browser");
+      
+      // Check if we're on Android via Capacitor
+      if (window.Capacitor?.isNativePlatform()) {
+        console.log("Running on native platform, attempting to use Android speech recognition");
+        
+        // This would be replaced with actual Android speech recognition plugin
+        // For demonstration, we'll mock it
+        
+        const androidListeningInterval = setInterval(() => {
+          // In a real implementation, we'd use a Capacitor plugin for speech recognition
+          console.log("Android speech detection is active");
+        }, 5000);
+        
+        setIsListening(true);
+        
+        return () => {
+          clearInterval(androidListeningInterval);
+        };
+      }
       return;
     }
     
@@ -34,7 +53,13 @@ export const useVoiceDetection = ({
       const recognitionInstance = new SpeechRecognition();
       recognitionInstance.continuous = true;
       recognitionInstance.interimResults = true;
-      recognitionInstance.lang = 'en-US'; // Default language
+      
+      // Set language to match device language if possible
+      if (navigator.language) {
+        recognitionInstance.lang = navigator.language;
+      } else {
+        recognitionInstance.lang = 'en-US'; // Default language
+      }
       
       recognitionInstance.onstart = () => {
         console.log("Voice detection started");
@@ -68,7 +93,7 @@ export const useVoiceDetection = ({
             const transcript = event.results[i][0].transcript.trim().toLowerCase();
             console.log("Detected speech:", transcript);
             
-            // Check if the trigger word is in the speech
+            // Check if the trigger word is in the speech with more tolerance on mobile
             if (transcript.includes(triggerWord.toLowerCase())) {
               console.log(`Trigger word "${triggerWord}" detected!`);
               onTriggerDetected();

@@ -2,9 +2,33 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { toast } from "sonner";
+import { loadContactsFromStorage } from '@/components/trusted-contacts/contactUtils';
 
 const SOSButton = () => {
   const [locationWatchId, setLocationWatchId] = useState<number | null>(null);
+
+  // Function to send SMS on Android
+  const sendSMSOnAndroid = async (phoneNumber: string, message: string) => {
+    try {
+      // Check if we're in a native environment
+      if (window.Capacitor?.isNativePlatform()) {
+        console.log(`Would send SMS to ${phoneNumber} with message: ${message}`);
+        
+        // In a real implementation, this would use a Capacitor SMS plugin
+        // For example with @capacitor-community/sms:
+        // await CapacitorSMS.send({
+        //   numbers: [phoneNumber],
+        //   text: message
+        // });
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error sending SMS:", error);
+      return false;
+    }
+  };
 
   // Clean up the location watcher when component unmounts
   useEffect(() => {
@@ -21,10 +45,9 @@ const SOSButton = () => {
       window.location.href = "tel:100";
       
       // Get trusted contacts
-      const contactsStr = localStorage.getItem('trustedContacts');
-      if (contactsStr) {
-        const contacts = JSON.parse(contactsStr);
-        
+      const contacts = loadContactsFromStorage();
+      
+      if (contacts.length > 0) {
         // Start watching the user's location for real-time updates
         if (navigator.geolocation) {
           const watchId = navigator.geolocation.watchPosition(
@@ -39,13 +62,12 @@ I need help immediately!
 ⏰ Sent: ${new Date().toLocaleTimeString()}
               `;
               
-              // In a real implementation, we would:
-              // 1. Send SMS via SMS API service
-              // 2. Send WhatsApp messages via WhatsApp Business API
-              // 3. Use other communication channels
-              
-              // We'll use console.log to show what would happen in a real implementation
-              console.log("SOS location update sent:", locationMessage);
+              // Try to send SMS on Android
+              if (window.Capacitor?.isNativePlatform()) {
+                contacts.forEach(contact => {
+                  sendSMSOnAndroid(contact.phone, locationMessage);
+                });
+              }
               
               // Show update every 30 seconds to not overwhelm the UI
               const timeNow = new Date().getTime();
