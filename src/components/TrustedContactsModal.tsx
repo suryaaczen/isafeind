@@ -17,7 +17,8 @@ import {
   loadContactsFromStorage, 
   saveContactsToStorage, 
   isDuplicatePhone,
-  simulateContactImport
+  importDeviceContacts,
+  requestContactsPermission
 } from "./trusted-contacts/contactUtils";
 
 interface TrustedContactsModalProps {
@@ -65,34 +66,48 @@ const TrustedContactsModal = ({ isOpen, onClose }: TrustedContactsModalProps) =>
     return isDuplicatePhone(phone, contacts);
   };
   
-  const handleImportContacts = () => {
-    // Note: This is just a simulation since actual contact import requires native capabilities
-    toast.info("This feature requires native device permissions");
-
-    // In a real React Native app, we would use the Contacts API
-    // For this web app, we'll simulate the import with a timeout
-    toast("Requesting contacts permission...");
-    
-    setTimeout(() => {
-      toast.success("Permission granted");
+  const handleImportContacts = async () => {
+    try {
+      // Request permission first
+      const hasPermission = await requestContactsPermission();
       
-      toast("Select contacts to import", {
-        description: "In a native app, you would see your device contacts here",
-        action: {
-          label: "Import Contacts",
-          onClick: () => {
-            toast.info("No contacts were imported - this is just a demonstration");
-            
-            // Note: simulateContactImport now returns an empty array
-            const importedContacts = simulateContactImport();
-            
-            if (importedContacts.length === 0) {
-              toast.info("No contacts were imported. In a real app, you would select contacts from your device.");
-            }
-          }
-        }
-      });
-    }, 800);
+      if (!hasPermission) {
+        toast.error("Permission to access contacts was denied");
+        return;
+      }
+      
+      toast.loading("Accessing contacts...");
+      
+      // Get contacts from device
+      const deviceContacts = await importDeviceContacts();
+      
+      if (deviceContacts.length === 0) {
+        toast.dismiss();
+        toast.info("No contacts were imported. In a capacitor-enabled app, you would select contacts from your device.");
+        return;
+      }
+      
+      // Filter out duplicate contacts
+      const newContacts = deviceContacts.filter(contact => !isDuplicatePhone(contact.phone, contacts));
+      
+      if (newContacts.length === 0) {
+        toast.dismiss();
+        toast.info("All selected contacts are already in your trusted contacts list");
+        return;
+      }
+      
+      // Add new contacts
+      const updatedContacts = [...contacts, ...newContacts];
+      setContacts(updatedContacts);
+      saveContactsToStorage(updatedContacts);
+      
+      toast.dismiss();
+      toast.success(`Added ${newContacts.length} new contacts`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Failed to import contacts. Please try again.");
+      console.error("Error importing contacts:", error);
+    }
   };
   
   return (

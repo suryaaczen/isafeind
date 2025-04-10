@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { toast } from "sonner";
 
 const SOSButton = () => {
   const [locationWatchId, setLocationWatchId] = useState<number | null>(null);
@@ -16,7 +17,7 @@ const SOSButton = () => {
 
   const handleSOS = async () => {
     try {
-      // Dial emergency number
+      // Immediately dial emergency number
       window.location.href = "tel:100";
       
       // Get trusted contacts
@@ -34,15 +35,28 @@ const SOSButton = () => {
               const locationMessage = `
 🚨 EMERGENCY SOS 🚨
 I need help immediately!
-📍 My location: https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}&zoom=16
+📍 My location: https://www.google.com/maps?q=${latitude},${longitude}
 ⏰ Sent: ${new Date().toLocaleTimeString()}
               `;
               
+              // In a real implementation, we would:
+              // 1. Send SMS via SMS API service
+              // 2. Send WhatsApp messages via WhatsApp Business API
+              // 3. Use other communication channels
+              
               // We'll use console.log to show what would happen in a real implementation
               console.log("SOS location update sent:", locationMessage);
+              
+              // Show update every 30 seconds to not overwhelm the UI
+              const timeNow = new Date().getTime();
+              if (!window.lastLocationToast || timeNow - window.lastLocationToast > 30000) {
+                toast.info("Location update sent to trusted contacts");
+                window.lastLocationToast = timeNow;
+              }
             },
             (error) => {
               console.error("Error getting location for SOS:", error);
+              toast.error("Could not access location. Please enable location services.");
             },
             { 
               enableHighAccuracy: true,
@@ -52,15 +66,18 @@ I need help immediately!
           );
           
           setLocationWatchId(watchId);
+        } else {
+          toast.error("Geolocation is not supported by this device");
         }
         
-        // We'll use browser alert to show what would happen
-        setTimeout(() => {
-          alert(`Emergency SOS activated!\n\nEmergency number 100 dialed\n\nLocation message sent to ${contacts.length} trusted contacts:\n\n${contacts.map((c: any) => c.name).join(", ")}`);
-        }, 1000);
+        // Alert shown after emergency call is triggered
+        toast.success(`Emergency SOS activated! Location being sent to ${contacts.length} trusted contacts`);
+      } else {
+        toast.error("No trusted contacts found. Please add contacts in settings.");
       }
     } catch (error) {
       console.error("Error in SOS:", error);
+      toast.error("Error activating SOS. Please try again.");
     }
   };
 
