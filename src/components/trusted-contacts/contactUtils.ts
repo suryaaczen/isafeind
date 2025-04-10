@@ -1,4 +1,6 @@
 
+import { toast } from "sonner";
+
 export interface Contact {
   id: string;
   name: string;
