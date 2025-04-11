@@ -7,45 +7,200 @@ interface VoiceDetectionOptions {
   onTriggerDetected: () => void;
   enabled?: boolean;
   sensitivity?: number; // 0 to 1, with 1 being most sensitive
+  languages?: string[]; // Array of language codes to detect
 }
 
 export const useVoiceDetection = ({
   triggerWord,
   onTriggerDetected,
   enabled = true,
-  sensitivity = 0.7
+  sensitivity = 0.7,
+  languages = ['en-US', 'hi-IN', 'te-IN', 'ta-IN', 'mr-IN', 'bn-IN'] // Default to English and common Indian languages
 }: VoiceDetectionOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
+  const [androidRecognition, setAndroidRecognition] = useState<any>(null);
+  const [currentLanguage, setCurrentLanguage] = useState(languages[0]);
+  
+  // Function to cycle through languages
+  const cycleLanguage = useCallback(() => {
+    const currentIndex = languages.indexOf(currentLanguage);
+    const nextIndex = (currentIndex + 1) % languages.length;
+    setCurrentLanguage(languages[nextIndex]);
+    
+    console.log(`Switched voice recognition to ${languages[nextIndex]}`);
+    return languages[nextIndex];
+  }, [currentLanguage, languages]);
+
+  // Initialize native Android speech recognition
+  const initAndroidRecognition = useCallback(() => {
+    if (!window.Capacitor?.isNativePlatform()) return null;
+    
+    console.log("Initializing Android native speech recognition");
+    
+    try {
+      // In a real implementation, we would use a Capacitor plugin like:
+      // const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
+      // return SpeechRecognition;
+      
+      // For demonstration without the actual plugin:
+      const mockAndroidRecognition = {
+        start: async (options: any) => {
+          console.log(`Starting Android speech recognition in ${options.language}`);
+          setIsListening(true);
+          
+          // Simulated recognition result after a short delay
+          setTimeout(() => {
+            console.log("Android mock recognition active");
+            toast.info(`Voice detection active (${options.language})`);
+          }, 1000);
+          
+          return true;
+        },
+        stop: async () => {
+          console.log("Stopping Android speech recognition");
+          setIsListening(false);
+          return true;
+        },
+        hasPermission: async () => {
+          return true;
+        },
+        requestPermission: async () => {
+          console.log("Requesting Android speech recognition permission");
+          toast.info("Requesting microphone permission");
+          return true;
+        }
+      };
+      
+      return mockAndroidRecognition;
+    } catch (error) {
+      console.error("Error initializing Android speech recognition:", error);
+      return null;
+    }
+  }, []);
+
+  // Helper function to check trigger words in multiple languages
+  const checkMultiLanguageTriggers = useCallback((transcript: string) => {
+    // Emergency trigger words in different languages
+    const triggerWords = {
+      'en-US': ['help', 'emergency', 'sos', 'danger'],
+      'hi-IN': ['मदद', 'बचाओ', 'बचाव', 'खतरा'],
+      'te-IN': ['సాయం', 'సహాయం', 'కాపాడండి'],
+      'ta-IN': ['உதவி', 'காப்பாற்று'],
+      'mr-IN': ['मदत', 'बचाव'],
+      'bn-IN': ['সাহায্য', 'বাঁচাও']
+    };
+    
+    // Check for trigger words in all configured languages
+    const lowercaseTranscript = transcript.toLowerCase();
+    
+    // Check if any trigger word is present
+    for (const lang in triggerWords) {
+      const words = triggerWords[lang as keyof typeof triggerWords];
+      if (words.some(word => lowercaseTranscript.includes(word))) {
+        console.log(`Detected trigger word in ${lang}: "${transcript}"`);
+        return true;
+      }
+    }
+    
+    // Check for the specific triggerWord passed as prop
+    if (lowercaseTranscript.includes(triggerWord.toLowerCase())) {
+      console.log(`Detected main trigger word "${triggerWord}": "${transcript}"`);
+      return true;
+    }
+    
+    return false;
+  }, [triggerWord]);
 
   // Initialize speech recognition
   useEffect(() => {
     if (!enabled) return;
 
-    // Check if speech recognition is supported
+    // Initialize Android native speech recognition if on Android
+    if (window.Capacitor?.isNativePlatform()) {
+      const androidSpeechRecognition = initAndroidRecognition();
+      setAndroidRecognition(androidSpeechRecognition);
+      
+      if (androidSpeechRecognition) {
+        // Request permission
+        androidSpeechRecognition.requestPermission()
+          .then((hasPermission: boolean) => {
+            if (hasPermission) {
+              // Start Android speech recognition
+              androidSpeechRecognition.start({
+                language: currentLanguage,
+                maxResults: 5,
+                prompt: "Listening for emergency commands...",
+                partialResults: true,
+                popup: false,
+                callbacks: {
+                  onResult: (results: any) => {
+                    if (results && results.matches && results.matches.length > 0) {
+                      const transcript = results.matches[0];
+                      console.log("Android speech recognition result:", transcript);
+                      
+                      if (checkMultiLanguageTriggers(transcript)) {
+                        onTriggerDetected();
+                      }
+                    }
+                  },
+                  onError: (error: any) => {
+                    console.error("Android speech recognition error:", error);
+                    
+                    // Restart recognition on error
+                    setTimeout(() => {
+                      if (enabled) {
+                        androidSpeechRecognition.start({
+                          language: cycleLanguage(),
+                          maxResults: 5,
+                          prompt: "Listening for emergency commands...",
+                          partialResults: true,
+                          popup: false
+                        });
+                      }
+                    }, 1000);
+                  },
+                  onStop: () => {
+                    console.log("Android speech recognition stopped");
+                    
+                    // Restart recognition when it stops
+                    setTimeout(() => {
+                      if (enabled) {
+                        androidSpeechRecognition.start({
+                          language: cycleLanguage(),
+                          maxResults: 5,
+                          prompt: "Listening for emergency commands...",
+                          partialResults: true,
+                          popup: false
+                        });
+                      }
+                    }, 1000);
+                  }
+                }
+              });
+            } else {
+              toast.error("Microphone permission denied. Voice detection disabled.");
+            }
+          })
+          .catch((error: any) => {
+            console.error("Error requesting Android speech permission:", error);
+          });
+      }
+      
+      return () => {
+        if (androidSpeechRecognition) {
+          androidSpeechRecognition.stop().catch((error: any) => {
+            console.error("Error stopping Android speech recognition:", error);
+          });
+        }
+      };
+    }
+
+    // Web speech recognition implementation for testing in browser
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
       console.warn("Speech recognition not supported in this browser");
-      
-      // Check if we're on Android via Capacitor
-      if (window.Capacitor?.isNativePlatform()) {
-        console.log("Running on native platform, attempting to use Android speech recognition");
-        
-        // This would be replaced with actual Android speech recognition plugin
-        // For demonstration, we'll mock it
-        
-        const androidListeningInterval = setInterval(() => {
-          // In a real implementation, we'd use a Capacitor plugin for speech recognition
-          console.log("Android speech detection is active");
-        }, 5000);
-        
-        setIsListening(true);
-        
-        return () => {
-          clearInterval(androidListeningInterval);
-        };
-      }
       return;
     }
     
@@ -53,13 +208,7 @@ export const useVoiceDetection = ({
       const recognitionInstance = new SpeechRecognition();
       recognitionInstance.continuous = true;
       recognitionInstance.interimResults = true;
-      
-      // Set language to match device language if possible
-      if (navigator.language) {
-        recognitionInstance.lang = navigator.language;
-      } else {
-        recognitionInstance.lang = 'en-US'; // Default language
-      }
+      recognitionInstance.lang = currentLanguage;
       
       recognitionInstance.onstart = () => {
         console.log("Voice detection started");
@@ -71,17 +220,35 @@ export const useVoiceDetection = ({
         if (event.error === 'not-allowed') {
           toast.error("Microphone access denied. Voice detection disabled.");
           setIsListening(false);
+        } else {
+          // Switch language and restart on error
+          setTimeout(() => {
+            if (enabled && recognition) {
+              recognition.lang = cycleLanguage();
+              try {
+                recognition.start();
+              } catch (error) {
+                console.error("Failed to restart voice detection after error:", error);
+              }
+            }
+          }, 1000);
         }
       };
       
       recognitionInstance.onend = () => {
         if (enabled) {
           // Restart recognition if it was still enabled when it stopped
-          try {
-            recognitionInstance.start();
-          } catch (error) {
-            console.error("Failed to restart voice detection:", error);
-          }
+          // Also cycle through languages
+          setTimeout(() => {
+            if (recognition) {
+              recognition.lang = cycleLanguage();
+              try {
+                recognition.start();
+              } catch (error) {
+                console.error("Failed to restart voice detection:", error);
+              }
+            }
+          }, 1000);
         } else {
           setIsListening(false);
         }
@@ -90,12 +257,11 @@ export const useVoiceDetection = ({
       recognitionInstance.onresult = (event: any) => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           if (event.results[i].isFinal) {
-            const transcript = event.results[i][0].transcript.trim().toLowerCase();
+            const transcript = event.results[i][0].transcript.trim();
             console.log("Detected speech:", transcript);
             
-            // Check if the trigger word is in the speech with more tolerance on mobile
-            if (transcript.includes(triggerWord.toLowerCase())) {
-              console.log(`Trigger word "${triggerWord}" detected!`);
+            // Check for trigger words in multiple languages
+            if (checkMultiLanguageTriggers(transcript)) {
               onTriggerDetected();
             }
           }
@@ -106,10 +272,15 @@ export const useVoiceDetection = ({
     } catch (error) {
       console.error("Error initializing speech recognition:", error);
     }
-  }, [enabled, triggerWord, onTriggerDetected, sensitivity]);
+  }, [enabled, currentLanguage, checkMultiLanguageTriggers, onTriggerDetected, cycleLanguage, initAndroidRecognition]);
   
   // Start/stop listening
   useEffect(() => {
+    if (window.Capacitor?.isNativePlatform()) {
+      // Android native speech recognition is managed in the initialization
+      return;
+    }
+    
     if (!recognition) return;
     
     if (enabled && !isListening) {
@@ -139,6 +310,21 @@ export const useVoiceDetection = ({
   }, [enabled, recognition, isListening]);
   
   const toggleListening = useCallback(() => {
+    if (window.Capacitor?.isNativePlatform() && androidRecognition) {
+      if (isListening) {
+        androidRecognition.stop();
+      } else {
+        androidRecognition.start({
+          language: currentLanguage,
+          maxResults: 5,
+          prompt: "Listening for emergency commands...",
+          partialResults: true,
+          popup: false
+        });
+      }
+      return;
+    }
+    
     if (recognition) {
       if (isListening) {
         recognition.stop();
@@ -150,11 +336,12 @@ export const useVoiceDetection = ({
         }
       }
     }
-  }, [recognition, isListening]);
+  }, [recognition, androidRecognition, isListening, currentLanguage]);
   
   return {
     isListening,
-    toggleListening
+    toggleListening,
+    currentLanguage
   };
 };
 

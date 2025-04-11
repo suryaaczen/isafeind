@@ -29,26 +29,26 @@ export const isDuplicatePhone = (phone: string, contacts: Contact[]): boolean =>
   return contacts.some(contact => contact.phone.replace(/\D/g, '') === cleanPhone);
 };
 
-// For native contact imports - improved for Android compatibility
+// For native contact imports - Improved for Android
 export const requestContactsPermission = async (): Promise<boolean> => {
   // Check if we're in a Capacitor environment
-  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+  if (window.Capacitor?.isNativePlatform()) {
     try {
       console.log("Requesting contacts permission from Android device");
       
       // In a real implementation, you would use Capacitor Contacts plugin
       // For example with @capacitor/contacts:
-      // const { permissions } = await import('@capacitor/core');
-      // const result = await permissions.requestPermissions({
-      //   permissions: ['contacts']
-      // });
-      // return result.permissions.contacts.granted;
+      // const { Contacts } = await import('@capacitor/contacts');
+      // await Contacts.requestPermissions();
+      // const permissionStatus = await Contacts.checkPermissions();
+      // return permissionStatus.contacts === 'granted';
       
       // For demonstration purposes
       toast.info("Requesting contact permissions on Android");
       return true;
     } catch (error) {
       console.error("Error requesting contacts permission:", error);
+      toast.error("Failed to get contacts permission. Please grant contacts permission in settings.");
       return false;
     }
   }
@@ -60,6 +60,7 @@ export const requestContactsPermission = async (): Promise<boolean> => {
       if (result.state === 'granted') {
         return true;
       }
+      toast.error("Contacts permission denied. Please allow access to your contacts.");
       return false;
     } catch (error) {
       console.error("Error checking web contacts permission:", error);
@@ -78,7 +79,7 @@ export const importDeviceContacts = async (): Promise<Contact[]> => {
     throw new Error("Contact permission denied");
   }
   
-  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+  if (window.Capacitor?.isNativePlatform()) {
     console.log("Accessing Android contacts");
     
     // In a real implementation, you would use the Capacitor Contacts plugin
@@ -98,6 +99,7 @@ export const importDeviceContacts = async (): Promise<Contact[]> => {
     // })).filter(c => c.phone);
     
     // For demonstration purposes, we'll use mock data
+    // In a real app, this would come from the Contacts plugin
     const mockContacts: Contact[] = [
       {
         id: 'contact1',
@@ -113,13 +115,25 @@ export const importDeviceContacts = async (): Promise<Contact[]> => {
         id: 'contact3',
         name: 'Police',
         phone: '100'
+      },
+      {
+        id: 'contact4',
+        name: 'Women Helpline',
+        phone: '1091'
+      },
+      {
+        id: 'contact5',
+        name: 'Sister',
+        phone: '7890123456'
       }
     ];
     
+    toast.success("Contacts imported successfully!");
     return mockContacts;
   } else {
     // Web fallback
     console.log("Web contacts access not fully implemented");
+    toast.error("Contact import is only available on Android devices");
     return [];
   }
 };

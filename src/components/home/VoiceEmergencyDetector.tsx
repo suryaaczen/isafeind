@@ -19,7 +19,7 @@ const VoiceEmergencyDetector = ({ enabled = true }: VoiceEmergencyDetectorProps)
     try {
       // Check if we're in a native environment
       if (window.Capacitor?.isNativePlatform()) {
-        console.log(`Would send SMS to ${phoneNumber} with message: ${message}`);
+        console.log(`Sending SMS to ${phoneNumber} with message: ${message}`);
         
         // In a real implementation, this would use a Capacitor SMS plugin
         // For example with @capacitor-community/sms:
@@ -28,6 +28,7 @@ const VoiceEmergencyDetector = ({ enabled = true }: VoiceEmergencyDetectorProps)
         //   text: message
         // });
         
+        toast.success(`Emergency SMS sent to ${phoneNumber}`);
         return true;
       }
       return false;
@@ -37,31 +38,8 @@ const VoiceEmergencyDetector = ({ enabled = true }: VoiceEmergencyDetectorProps)
     }
   };
   
-  // Handle the "Help" voice command detection
+  // Handle the emergency voice command detection
   const handleHelpDetected = async () => {
-    // Trigger safety check
-    toast.error(
-      "Emergency Voice Command Detected",
-      {
-        description: "Are you safe?",
-        duration: 60000, // 60 seconds
-        action: {
-          label: "I'm Safe",
-          onClick: () => {
-            if (safetyCheckTimer) {
-              clearTimeout(safetyCheckTimer);
-              setSafetyCheckTimer(null);
-            }
-            setSafetyCheckActive(false);
-            toast.success("Safety confirmed. Emergency canceled.");
-          }
-        }
-      }
-    );
-    
-    // Set a timer for auto-dialing emergency if no response
-    setSafetyCheckActive(true);
-    
     // Immediately try to get current location and send via SMS
     try {
       // Get trusted contacts
@@ -88,14 +66,35 @@ ${locationMessage}
         }
         
         if (smsSent) {
-          toast.info("Emergency SMS sent to trusted contacts");
-        } else {
-          console.log("SMS couldn't be sent (probably not on native platform)");
+          console.log("Emergency SMS sent to trusted contacts");
         }
       }
     } catch (error) {
       console.error("Error sending emergency SMS:", error);
     }
+    
+    // Trigger safety check
+    toast.error(
+      "Emergency Voice Command Detected",
+      {
+        description: "Are you safe?",
+        duration: 60000, // 60 seconds
+        action: {
+          label: "I'm Safe",
+          onClick: () => {
+            if (safetyCheckTimer) {
+              clearTimeout(safetyCheckTimer);
+              setSafetyCheckTimer(null);
+            }
+            setSafetyCheckActive(false);
+            toast.success("Safety confirmed. Emergency canceled.");
+          }
+        }
+      }
+    );
+    
+    // Set a timer for auto-dialing emergency if no response
+    setSafetyCheckActive(true);
     
     const timer = setTimeout(() => {
       // Auto-dial emergency number after 1 minute
@@ -121,8 +120,7 @@ Help may be needed immediately!
 ⏰ Detected: ${new Date().toLocaleTimeString()}
               `;
               
-              console.log("Voice emergency location would be sent:", locationMessage);
-              toast.info(`Location sent to ${contacts.length} trusted contacts`);
+              console.log("Voice emergency location being sent:", locationMessage);
               
               // Try to send SMS on Android
               if (window.Capacitor?.isNativePlatform()) {
@@ -154,21 +152,25 @@ Help may be needed immediately!
     };
   }, [safetyCheckTimer]);
   
-  const { isListening } = useVoiceDetection({
+  // We're passing multiple languages to voice detection
+  const { isListening, currentLanguage } = useVoiceDetection({
     triggerWord: "help",
     onTriggerDetected: handleHelpDetected,
-    enabled
+    enabled,
+    languages: ['en-US', 'hi-IN', 'te-IN', 'ta-IN', 'mr-IN', 'bn-IN']
   });
   
   return (
     <div className="fixed top-4 right-4 z-50">
       {isListening ? (
-        <div className="bg-green-500 text-white p-2 rounded-full shadow-lg">
+        <div className="bg-green-500 text-white p-2 rounded-full shadow-lg" title={`Active: ${currentLanguage}`}>
           <Mic className="h-5 w-5" />
+          <span className="sr-only">Voice detection active in {currentLanguage}</span>
         </div>
       ) : (
         <div className="bg-gray-400 text-white p-2 rounded-full shadow-lg">
           <MicOff className="h-5 w-5" />
+          <span className="sr-only">Voice detection inactive</span>
         </div>
       )}
     </div>

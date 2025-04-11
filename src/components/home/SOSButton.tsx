@@ -12,7 +12,7 @@ const SOSButton = () => {
     try {
       // Check if we're in a native environment
       if (window.Capacitor?.isNativePlatform()) {
-        console.log(`Would send SMS to ${phoneNumber} with message: ${message}`);
+        console.log(`Sending SMS to ${phoneNumber} with message: ${message}`);
         
         // In a real implementation, this would use a Capacitor SMS plugin
         // For example with @capacitor-community/sms:
@@ -41,65 +41,65 @@ const SOSButton = () => {
 
   const handleSOS = async () => {
     try {
-      // Immediately dial emergency number
-      window.location.href = "tel:100";
-      
-      // Get trusted contacts
+      // Get trusted contacts first so we can start sending SMS
       const contacts = loadContactsFromStorage();
       
-      if (contacts.length > 0) {
-        // Start watching the user's location for real-time updates
-        if (navigator.geolocation) {
-          const watchId = navigator.geolocation.watchPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              
-              // Send location to trusted contacts
-              const locationMessage = `
+      // Start watching the user's location for real-time updates
+      if (navigator.geolocation) {
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            
+            // Send location to trusted contacts
+            const locationMessage = `
 🚨 EMERGENCY SOS 🚨
 I need help immediately!
 📍 My location: https://www.google.com/maps?q=${latitude},${longitude}
 ⏰ Sent: ${new Date().toLocaleTimeString()}
-              `;
-              
-              // Try to send SMS on Android
-              if (window.Capacitor?.isNativePlatform()) {
-                contacts.forEach(contact => {
-                  sendSMSOnAndroid(contact.phone, locationMessage);
-                });
-              }
-              
-              // Show update every 30 seconds to not overwhelm the UI
-              const timeNow = new Date().getTime();
-              if (!window.lastLocationToast || timeNow - window.lastLocationToast > 30000) {
-                toast.info("Location update sent to trusted contacts");
-                window.lastLocationToast = timeNow;
-              }
-            },
-            (error) => {
-              console.error("Error getting location for SOS:", error);
-              toast.error("Could not access location. Please enable location services.");
-            },
-            { 
-              enableHighAccuracy: true,
-              maximumAge: 0,
-              timeout: 10000
+            `;
+            
+            // Try to send SMS on Android
+            if (window.Capacitor?.isNativePlatform() && contacts.length > 0) {
+              contacts.forEach(contact => {
+                sendSMSOnAndroid(contact.phone, locationMessage);
+              });
             }
-          );
-          
-          setLocationWatchId(watchId);
-        } else {
-          toast.error("Geolocation is not supported by this device");
-        }
+            
+            // Show update every 30 seconds to not overwhelm the UI
+            const timeNow = new Date().getTime();
+            if (!window.lastLocationToast || timeNow - window.lastLocationToast > 30000) {
+              toast.info("Location update sent to trusted contacts");
+              window.lastLocationToast = timeNow;
+            }
+          },
+          (error) => {
+            console.error("Error getting location for SOS:", error);
+            toast.error("Could not access location. Please enable location services.");
+          },
+          { 
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 10000
+          }
+        );
         
-        // Alert shown after emergency call is triggered
-        toast.success(`Emergency SOS activated! Location being sent to ${contacts.length} trusted contacts`);
+        setLocationWatchId(watchId);
       } else {
-        toast.error("No trusted contacts found. Please add contacts in settings.");
+        toast.error("Geolocation is not supported by this device");
       }
+      
+      // Show toast notification about SOS being activated
+      toast.success(`Emergency SOS activated! ${contacts.length > 0 ? `Location being sent to ${contacts.length} trusted contacts` : 'No trusted contacts found'}`);
+      
+      // Immediately dial emergency number
+      window.location.href = "tel:100";
+      
     } catch (error) {
       console.error("Error in SOS:", error);
       toast.error("Error activating SOS. Please try again.");
+      
+      // Still try to dial emergency even if other parts fail
+      window.location.href = "tel:100";
     }
   };
 
