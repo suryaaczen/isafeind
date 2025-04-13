@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import LocationSharing from "./pages/LocationSharing";
+import MonitorMe from "./pages/MonitorMe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/home" element={<Home />} />
           <Route path="/location-sharing" element={<LocationSharing />} />
+          <Route path="/monitor-me" element={<MonitorMe />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
