@@ -5,29 +5,81 @@
 // The sheet should have these columns: id, from, to, vehicleNumber, phoneNumber, timestamp, status
 
 function doGet(e) {
+  // Set CORS headers for all responses
+  const output = ContentService.createTextOutput();
+  output.setMimeType(ContentService.MimeType.JSON);
+  
+  // Add required headers for CORS
+  output.addHeader('Access-Control-Allow-Origin', '*');
+  output.addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  output.addHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   if (e.parameter.action === 'getRides') {
-    return getRides();
+    return getRides(output);
   }
-  return ContentService.createTextOutput(JSON.stringify({ error: 'Invalid action' }))
-    .setMimeType(ContentService.MimeType.JSON);
+  
+  return output.setContent(JSON.stringify({ error: 'Invalid action' }));
 }
 
 function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
+  // Set CORS headers for all responses
+  const output = ContentService.createTextOutput();
+  output.setMimeType(ContentService.MimeType.JSON);
   
-  if (data.action === 'addRide') {
-    return addRide(data.data);
-  } else if (data.action === 'updateStatus') {
-    return updateStatus(data.data);
+  // Add required headers for CORS
+  output.addHeader('Access-Control-Allow-Origin', '*');
+  output.addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  output.addHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  var data;
+  try {
+    data = JSON.parse(e.postData.contents);
+  } catch (error) {
+    return output.setContent(JSON.stringify({ 
+      success: false, 
+      error: "Invalid JSON in request body" 
+    }));
   }
   
-  return ContentService.createTextOutput(JSON.stringify({ error: 'Invalid action' }))
-    .setMimeType(ContentService.MimeType.JSON);
+  if (data.action === 'addRide') {
+    return addRide(data.data, output);
+  } else if (data.action === 'updateStatus') {
+    return updateStatus(data.data, output);
+  }
+  
+  return output.setContent(JSON.stringify({ error: 'Invalid action' }));
 }
 
-function getRides() {
+// Handle preflight OPTIONS requests for CORS
+function doOptions(e) {
+  var output = ContentService.createTextOutput();
+  output.setMimeType(ContentService.MimeType.JSON);
+  
+  // Add required headers for CORS preflight response
+  output.addHeader('Access-Control-Allow-Origin', '*');
+  output.addHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  output.addHeader('Access-Control-Allow-Headers', 'Content-Type');
+  output.addHeader('Access-Control-Max-Age', '3600');
+  
+  return output.setContent(JSON.stringify({ status: 'success' }));
+}
+
+function getRides(output) {
   try {
     var sheet = SpreadsheetApp.openById('17UfZU0E1wgnUzxHYDozlkfhvW81KeVeKimpOT8ZWtMo').getSheetByName('Rides');
+    
+    // Check if sheet exists
+    if (!sheet) {
+      // Create it if it doesn't exist
+      sheet = SpreadsheetApp.openById('17UfZU0E1wgnUzxHYDozlkfhvW81KeVeKimpOT8ZWtMo').insertSheet('Rides');
+      sheet.appendRow(['id', 'from', 'to', 'vehicleNumber', 'phoneNumber', 'timestamp', 'status']);
+      
+      return output.setContent(JSON.stringify({ 
+        success: true, 
+        rides: [] 
+      }));
+    }
+    
     var data = sheet.getDataRange().getValues();
     var headers = data[0];
     var rides = [];
@@ -43,19 +95,19 @@ function getRides() {
       rides.push(ride);
     }
     
-    return ContentService.createTextOutput(JSON.stringify({ 
+    return output.setContent(JSON.stringify({ 
       success: true, 
       rides: rides 
-    })).setMimeType(ContentService.MimeType.JSON);
+    }));
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ 
+    return output.setContent(JSON.stringify({ 
       success: false, 
       error: error.toString() 
-    })).setMimeType(ContentService.MimeType.JSON);
+    }));
   }
 }
 
-function addRide(rideData) {
+function addRide(rideData, output) {
   try {
     var sheet = SpreadsheetApp.openById('17UfZU0E1wgnUzxHYDozlkfhvW81KeVeKimpOT8ZWtMo').getSheetByName('Rides');
     
@@ -65,45 +117,71 @@ function addRide(rideData) {
       sheet.appendRow(['id', 'from', 'to', 'vehicleNumber', 'phoneNumber', 'timestamp', 'status']);
     }
     
+    // Log the received data for debugging
+    Logger.log("Received ride data: " + JSON.stringify(rideData));
+    
     sheet.appendRow([
-      rideData.id,
-      rideData.from,
-      rideData.to,
-      rideData.vehicleNumber,
-      rideData.phoneNumber,
-      rideData.timestamp,
-      rideData.status
+      rideData.id || '',
+      rideData.from || '',
+      rideData.to || '',
+      rideData.vehicleNumber || '',
+      rideData.phoneNumber || '',
+      rideData.timestamp || new Date().toISOString(),
+      rideData.status || 'active'
     ]);
     
-    return ContentService.createTextOutput(JSON.stringify({ success: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return output.setContent(JSON.stringify({ 
+      success: true,
+      message: "Ride added successfully"
+    }));
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ 
+    Logger.log("Error adding ride: " + error.toString());
+    return output.setContent(JSON.stringify({ 
       success: false, 
       error: error.toString() 
-    })).setMimeType(ContentService.MimeType.JSON);
+    }));
   }
 }
 
-function updateStatus(data) {
+function updateStatus(data, output) {
   try {
     var sheet = SpreadsheetApp.openById('17UfZU0E1wgnUzxHYDozlkfhvW81KeVeKimpOT8ZWtMo').getSheetByName('Rides');
+    
+    // Check if sheet exists
+    if (!sheet) {
+      return output.setContent(JSON.stringify({
+        success: false,
+        error: "Rides sheet does not exist"
+      }));
+    }
+    
     var values = sheet.getDataRange().getValues();
+    var found = false;
     
     for (var i = 1; i < values.length; i++) {
       if (values[i][0] === data.id) {
-        // Update status (assuming status is the 7th column)
+        // Update status (assuming status is the 7th column, index 6)
         sheet.getRange(i + 1, 7).setValue(data.status);
+        found = true;
         break;
       }
     }
     
-    return ContentService.createTextOutput(JSON.stringify({ success: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    if (!found) {
+      return output.setContent(JSON.stringify({
+        success: false,
+        error: "Ride with ID " + data.id + " not found"
+      }));
+    }
+    
+    return output.setContent(JSON.stringify({ 
+      success: true,
+      message: "Status updated successfully" 
+    }));
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ 
+    return output.setContent(JSON.stringify({ 
       success: false, 
       error: error.toString() 
-    })).setMimeType(ContentService.MimeType.JSON);
+    }));
   }
 }

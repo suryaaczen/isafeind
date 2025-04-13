@@ -218,7 +218,7 @@ const MonitorMe = () => {
     // Generate a unique ID for this ride
     const rideId = Date.now().toString();
     
-    // Save to Google Sheets using their API
+    // Create the ride object
     const timestamp = new Date().toISOString();
     const newRide = {
       id: rideId,
@@ -229,28 +229,35 @@ const MonitorMe = () => {
       status: 'active' as const
     };
     
-    // Save to Google Sheets
-    saveToGoogleSheets(newRide);
-    
-    // Update local ride history
+    // Update local ride history first
     const updatedRideHistory = [newRide, ...rideHistory];
     setRideHistory(updatedRideHistory);
     
     // Save to local storage
     localStorage.setItem('rideHistory', JSON.stringify(updatedRideHistory));
     
-    // Set up periodic safety checks (every 10 minutes)
-    const id = window.setInterval(() => {
-      sendSafetyCheck();
-    }, 10 * 60 * 1000); // 10 minutes
-    
-    setIntervalId(id);
-    setIsRideActive(true);
-    setNotificationCount(0);
-    
-    toast.success("Ride monitoring has started!", {
-      description: "We'll check on you every 10 minutes."
-    });
+    // Then save to Google Sheets
+    saveToGoogleSheets(newRide)
+      .then(() => {
+        console.log("Ride saved successfully");
+        
+        // Set up periodic safety checks (every 10 minutes)
+        const id = window.setInterval(() => {
+          sendSafetyCheck();
+        }, 10 * 60 * 1000); // 10 minutes
+        
+        setIntervalId(id);
+        setIsRideActive(true);
+        setNotificationCount(0);
+        
+        toast.success("Ride monitoring has started!", {
+          description: "We'll check on you every 10 minutes."
+        });
+      })
+      .catch(error => {
+        console.error("Failed to save ride to Google Sheets:", error);
+        toast.error("Failed to save ride details to cloud storage. Your ride is still being monitored locally.");
+      });
   };
   
   const stopRide = () => {
@@ -284,11 +291,16 @@ const MonitorMe = () => {
     // Also update in Google Sheets
     const activeRide = rideHistory.find(ride => ride.status === 'active');
     if (activeRide) {
-      updateSheetStatus(activeRide.id, status);
+      updateSheetStatus(activeRide.id, status)
+        .catch(error => {
+          console.error("Error updating ride status in Google Sheets:", error);
+        });
     }
   };
   
   const saveToGoogleSheets = async (data: RideHistory) => {
+    console.log("Attempting to save ride to Google Sheets:", data);
+    
     try {
       // Using the updated Google Apps Script Web App URL
       const scriptUrl = 'https://script.google.com/macros/s/AKfycbwP2zrgDWNdPSnMJgBtLz_EiNoKpgHm_ux9ivVRp0SyY-VC50qzJVFib3hgyP33k2Qp/exec';
@@ -302,7 +314,7 @@ const MonitorMe = () => {
           action: 'addRide',
           data: {
             id: data.id,
-            from: currentLocation, // Use current location
+            from: currentLocation || 'Unknown', // Use current location or fallback
             to: data.to,
             vehicleNumber: data.vehicleNumber,
             phoneNumber: data.phoneNumber,
@@ -310,6 +322,7 @@ const MonitorMe = () => {
             status: data.status
           }
         }),
+        mode: 'no-cors' // Important for cross-origin requests to Google Apps Script
       });
       
       console.log("Google Sheets response:", response);
@@ -317,9 +330,12 @@ const MonitorMe = () => {
       toast.success("Ride details saved", {
         description: "Your journey has been recorded for safety"
       });
+      
+      return true;
     } catch (error) {
       console.error("Error saving to Google Sheets:", error);
       toast.error("Failed to save ride details");
+      throw error;
     }
   };
   
@@ -340,9 +356,13 @@ const MonitorMe = () => {
             status: status
           }
         }),
+        mode: 'no-cors' // Important for cross-origin requests to Google Apps Script
       });
+      
+      return true;
     } catch (error) {
       console.error("Error updating status in Google Sheets:", error);
+      throw error;
     }
   };
   
@@ -351,8 +371,16 @@ const MonitorMe = () => {
       // Using the updated Google Apps Script Web App URL
       const scriptUrl = 'https://script.google.com/macros/s/AKfycbwP2zrgDWNdPSnMJgBtLz_EiNoKpgHm_ux9ivVRp0SyY-VC50qzJVFib3hgyP33k2Qp/exec';
       
-      const response = await fetch(`${scriptUrl}?action=getRides`);
+      const response = await fetch(`${scriptUrl}?action=getRides`, {
+        mode: 'cors' // Use cors mode for GET requests
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log("Fetched ride history:", data);
       
       if (data.success && Array.isArray(data.rides)) {
         // Merge with local history, prioritizing existing local entries
