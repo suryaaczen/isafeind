@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -18,7 +16,6 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 // Define ride history interface
 interface RideHistory {
   id: string;
-  from: string;
   to: string;
   vehicleNumber: string;
   phoneNumber: string;
@@ -31,7 +28,6 @@ interface RideHistory {
 const vehicleNumberRegex = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{4}$/;
 
 const formSchema = z.object({
-  from: z.string().min(3, "Starting location is required"),
   to: z.string().min(3, "Destination is required"),
   vehicleNumber: z.string().regex(vehicleNumberRegex, "Enter a valid Indian vehicle number (e.g., MH02AB1234)"),
   phoneNumber: z.string().regex(/^\d{10}$/, "Phone number must be 10 digits")
@@ -45,37 +41,59 @@ const MonitorMe = () => {
   const [notificationCount, setNotificationCount] = useState(0);
   const [intervalId, setIntervalId] = useState<number | null>(null);
   const [rideHistory, setRideHistory] = useState<RideHistory[]>([]);
-  const [fromSuggestions, setFromSuggestions] = useState<string[]>([]);
   const [toSuggestions, setToSuggestions] = useState<string[]>([]);
-  const [showFromSuggestions, setShowFromSuggestions] = useState(false);
   const [showToSuggestions, setShowToSuggestions] = useState(false);
   const { location } = useLocationTracking();
+  const [currentLocation, setCurrentLocation] = useState("");
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      from: '',
       to: '',
       vehicleNumber: '',
       phoneNumber: ''
     }
   });
 
-  // Get current location and update the from field when component mounts
+  // Get current location when component mounts
   useEffect(() => {
     if (location.latitude && location.longitude) {
       fetchAddress(location.latitude, location.longitude)
         .then(address => {
-          if (address) form.setValue('from', address);
+          if (address) setCurrentLocation(address);
         });
     }
   }, [location.latitude, location.longitude]);
   
+  // Load ride history from local storage
+  useEffect(() => {
+    const savedRides = localStorage.getItem('rideHistory');
+    if (savedRides) {
+      try {
+        const parsedRides = JSON.parse(savedRides);
+        setRideHistory(parsedRides);
+        
+        // Check if there's an active ride
+        const activeRide = parsedRides.find((ride: RideHistory) => ride.status === 'active');
+        if (activeRide) {
+          setIsRideActive(true);
+          // Set up safety checks again
+          const id = window.setInterval(() => {
+            sendSafetyCheck();
+          }, 10 * 60 * 1000); // 10 minutes
+          setIntervalId(id);
+        }
+      } catch (error) {
+        console.error("Error parsing stored rides:", error);
+      }
+    }
+    
+    // Load ride history from Google Sheets as well
+    fetchRideHistory();
+  }, []);
+  
   // Clean up interval on unmount or when ride stops
   useEffect(() => {
-    // Load ride history when component mounts
-    fetchRideHistory();
-    
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
@@ -97,22 +115,19 @@ const MonitorMe = () => {
     }
   };
   
-  // Function to search for address suggestions
-  const searchAddress = async (query: string, isFrom: boolean) => {
+  // Function to search for address suggestions using LocationIQ API
+  const searchAddress = async (query: string) => {
     if (query.length < 3) return;
     
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in`
+        `https://api.locationiq.com/v1/autocomplete.php?key=pk.e40e696439ec2004f899f1194a320f82&q=${encodeURIComponent(query)}&limit=5&countrycodes=in`
       );
       const data = await response.json();
-      const suggestions = data.map((item: any) => item.display_name);
       
-      if (isFrom) {
-        setFromSuggestions(suggestions);
-        setShowFromSuggestions(true);
-      } else {
-        setToSuggestions(suggestions);
+      if (Array.isArray(data)) {
+        const suggestions = data.map(item => item.display_name || item.address?.name || "");
+        setToSuggestions(suggestions.filter(s => s !== ""));
         setShowToSuggestions(true);
       }
     } catch (error) {
@@ -121,32 +136,26 @@ const MonitorMe = () => {
   };
   
   // Function to select a suggestion
-  const selectSuggestion = (suggestion: string, isFrom: boolean) => {
-    if (isFrom) {
-      form.setValue('from', suggestion);
-      setShowFromSuggestions(false);
-    } else {
-      form.setValue('to', suggestion);
-      setShowToSuggestions(false);
-    }
+  const selectSuggestion = (suggestion: string) => {
+    form.setValue('to', suggestion);
+    setShowToSuggestions(false);
   };
   
-  const validateLocations = (from: string, to: string) => {
+  const validateLocations = (to: string) => {
     // This is a simplified check - in a real app you'd use a geocoding API
     const stateIndicators = [
       'Maharashtra', 'Delhi', 'Karnataka', 'Tamil Nadu', 'UP', 
       'MP', 'Punjab', 'Haryana', 'Gujarat', 'Rajasthan'
     ];
     
-    // Simple validation to ensure both locations contain the same state indicator
-    const fromState = stateIndicators.find(state => from.includes(state));
+    // For this simplified version, we'll allow the ride if the destination has a state we recognize
     const toState = stateIndicators.find(state => to.includes(state));
     
-    if (!fromState || !toState) {
+    if (!toState) {
       return true; // For demo purposes we're allowing if no state is detected
     }
     
-    return fromState === toState;
+    return true;
   };
   
   const sendSafetyCheck = () => {
@@ -200,9 +209,9 @@ const MonitorMe = () => {
   };
   
   const startRide = (data: FormValues) => {
-    // Validate locations are in the same state
-    if (!validateLocations(data.from, data.to)) {
-      toast.error("Starting and destination locations must be in the same state.");
+    // Validate destination
+    if (!validateLocations(data.to)) {
+      toast.error("Destination location must be valid.");
       return;
     }
     
@@ -213,7 +222,6 @@ const MonitorMe = () => {
     const timestamp = new Date().toISOString();
     const newRide = {
       id: rideId,
-      from: data.from,
       to: data.to,
       vehicleNumber: data.vehicleNumber,
       phoneNumber: data.phoneNumber,
@@ -221,13 +229,17 @@ const MonitorMe = () => {
       status: 'active' as const
     };
     
+    // Save to Google Sheets
     saveToGoogleSheets(newRide);
     
     // Update local ride history
-    setRideHistory(prev => [newRide, ...prev]);
+    const updatedRideHistory = [newRide, ...rideHistory];
+    setRideHistory(updatedRideHistory);
+    
+    // Save to local storage
+    localStorage.setItem('rideHistory', JSON.stringify(updatedRideHistory));
     
     // Set up periodic safety checks (every 10 minutes)
-    // For demo purposes, we'll use a shorter interval
     const id = window.setInterval(() => {
       sendSafetyCheck();
     }, 10 * 60 * 1000); // 10 minutes
@@ -260,9 +272,14 @@ const MonitorMe = () => {
   
   const updateRideStatus = (status: 'completed' | 'emergency') => {
     // Find the active ride and update its status
-    setRideHistory(prev => prev.map(ride => 
+    const updatedRideHistory = rideHistory.map(ride => 
       ride.status === 'active' ? { ...ride, status } : ride
-    ));
+    );
+    
+    setRideHistory(updatedRideHistory);
+    
+    // Save updated history to local storage
+    localStorage.setItem('rideHistory', JSON.stringify(updatedRideHistory));
     
     // Also update in Google Sheets
     const activeRide = rideHistory.find(ride => ride.status === 'active');
@@ -274,7 +291,6 @@ const MonitorMe = () => {
   const saveToGoogleSheets = async (data: RideHistory) => {
     try {
       // Using a Google Apps Script Web App as a proxy to write to Google Sheets
-      // This URL should be replaced with your actual Google Apps Script Web App URL
       const scriptUrl = 'https://script.google.com/macros/s/AKfycbyBWg4RuLnyY7hZ7cFZCObzgokzbvCbCXUE2w_SkVS5XA76pXtx_RQ4aHlTe5zgyMqE0g/exec';
       
       const response = await fetch(scriptUrl, {
@@ -286,7 +302,7 @@ const MonitorMe = () => {
           action: 'addRide',
           data: {
             id: data.id,
-            from: data.from,
+            from: currentLocation, // Use current location
             to: data.to,
             vehicleNumber: data.vehicleNumber,
             phoneNumber: data.phoneNumber,
@@ -339,11 +355,19 @@ const MonitorMe = () => {
       const data = await response.json();
       
       if (data.success && Array.isArray(data.rides)) {
-        setRideHistory(data.rides);
+        // Merge with local history, prioritizing existing local entries
+        const existingIds = rideHistory.map(ride => ride.id);
+        const newRides = data.rides.filter((ride: RideHistory) => !existingIds.includes(ride.id));
+        
+        const mergedRideHistory = [...rideHistory, ...newRides];
+        setRideHistory(mergedRideHistory);
+        
+        // Save merged history to local storage
+        localStorage.setItem('rideHistory', JSON.stringify(mergedRideHistory));
         
         // Check if there's an active ride
-        const activeRide = data.rides.find((ride: RideHistory) => ride.status === 'active');
-        if (activeRide) {
+        const activeRide = mergedRideHistory.find((ride: RideHistory) => ride.status === 'active');
+        if (activeRide && !isRideActive) {
           setIsRideActive(true);
           // Set up safety checks again
           const id = window.setInterval(() => {
@@ -392,55 +416,15 @@ const MonitorMe = () => {
         <p className="text-white/80 mb-6">Stay safe during your journey</p>
         
         <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
+          {currentLocation && (
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-sm text-gray-500">Your current location:</p>
+              <p className="font-medium truncate">{currentLocation}</p>
+            </div>
+          )}
+          
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="from"
-                render={({ field }) => (
-                  <FormItem className="relative">
-                    <FormLabel>Starting Location</FormLabel>
-                    <div className="relative">
-                      <FormControl>
-                        <Input 
-                          placeholder="Enter your starting point" 
-                          {...field} 
-                          disabled={isRideActive}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            searchAddress(e.target.value, true);
-                          }}
-                          onFocus={() => setShowFromSuggestions(true)}
-                        />
-                      </FormControl>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon"
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                        onClick={() => searchAddress(field.value, true)}
-                      >
-                        <Search className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {showFromSuggestions && fromSuggestions.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                        {fromSuggestions.map((suggestion, index) => (
-                          <div 
-                            key={index}
-                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                            onClick={() => selectSuggestion(suggestion, true)}
-                          >
-                            {suggestion}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
               <FormField
                 control={form.control}
                 name="to"
@@ -455,7 +439,7 @@ const MonitorMe = () => {
                           disabled={isRideActive}
                           onChange={(e) => {
                             field.onChange(e);
-                            searchAddress(e.target.value, false);
+                            searchAddress(e.target.value);
                           }}
                           onFocus={() => setShowToSuggestions(true)}
                         />
@@ -465,7 +449,7 @@ const MonitorMe = () => {
                         variant="ghost" 
                         size="icon"
                         className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                        onClick={() => searchAddress(field.value, false)}
+                        onClick={() => searchAddress(field.value)}
                       >
                         <Search className="h-4 w-4" />
                       </Button>
@@ -476,7 +460,7 @@ const MonitorMe = () => {
                           <div 
                             key={index}
                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                            onClick={() => selectSuggestion(suggestion, false)}
+                            onClick={() => selectSuggestion(suggestion)}
                           >
                             {suggestion}
                           </div>
@@ -550,7 +534,6 @@ const MonitorMe = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>From</TableHead>
                     <TableHead>To</TableHead>
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Status</TableHead>
@@ -560,8 +543,7 @@ const MonitorMe = () => {
                   {rideHistory.map((ride) => (
                     <TableRow key={ride.id}>
                       <TableCell>{formatDate(ride.timestamp)}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{ride.from}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{ride.to}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{ride.to}</TableCell>
                       <TableCell>{ride.vehicleNumber}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded-full text-xs ${
