@@ -290,8 +290,8 @@ const MonitorMe = () => {
   
   const saveToGoogleSheets = async (data: RideHistory) => {
     try {
-      // Using a Google Apps Script Web App as a proxy to write to Google Sheets
-      const scriptUrl = 'https://script.google.com/macros/s/AKfycbyBWg4RuLnyY7hZ7cFZCObzgokzbvCbCXUE2w_SkVS5XA76pXtx_RQ4aHlTe5zgyMqE0g/exec';
+      // Using the updated Google Apps Script Web App URL
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbwP2zrgDWNdPSnMJgBtLz_EiNoKpgHm_ux9ivVRp0SyY-VC50qzJVFib3hgyP33k2Qp/exec';
       
       const response = await fetch(scriptUrl, {
         method: 'POST',
@@ -325,8 +325,8 @@ const MonitorMe = () => {
   
   const updateSheetStatus = async (rideId: string, status: string) => {
     try {
-      // Using the same Google Apps Script Web App to update status
-      const scriptUrl = 'https://script.google.com/macros/s/AKfycbyBWg4RuLnyY7hZ7cFZCObzgokzbvCbCXUE2w_SkVS5XA76pXtx_RQ4aHlTe5zgyMqE0g/exec';
+      // Using the updated Google Apps Script Web App URL
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbwP2zrgDWNdPSnMJgBtLz_EiNoKpgHm_ux9ivVRp0SyY-VC50qzJVFib3hgyP33k2Qp/exec';
       
       await fetch(scriptUrl, {
         method: 'POST',
@@ -348,8 +348,8 @@ const MonitorMe = () => {
   
   const fetchRideHistory = async () => {
     try {
-      // Using the same Google Apps Script Web App to fetch ride history
-      const scriptUrl = 'https://script.google.com/macros/s/AKfycbyBWg4RuLnyY7hZ7cFZCObzgokzbvCbCXUE2w_SkVS5XA76pXtx_RQ4aHlTe5zgyMqE0g/exec';
+      // Using the updated Google Apps Script Web App URL
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbwP2zrgDWNdPSnMJgBtLz_EiNoKpgHm_ux9ivVRp0SyY-VC50qzJVFib3hgyP33k2Qp/exec';
       
       const response = await fetch(`${scriptUrl}?action=getRides`);
       const data = await response.json();
@@ -517,7 +517,7 @@ const MonitorMe = () => {
                 </Alert>
               )}
               
-              <Button type="submit" className="w-full bg-hershield-red hover:bg-red-700">
+              <Button type="submit" className="w-full bg-hershield-teal hover:bg-hershield-blue-light">
                 {isRideActive ? "Stop Monitoring" : "Start Monitoring"}
               </Button>
             </form>

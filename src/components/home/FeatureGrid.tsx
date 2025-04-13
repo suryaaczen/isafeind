@@ -1,5 +1,5 @@
 
-import { MapPin, Users, Bell, FileText, LifeBuoy, Car } from 'lucide-react';
+import { MapPin, Users, Bell, FileText, LifeBuoy, Car, Compass } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface FeatureGridProps {
@@ -54,9 +54,9 @@ const FeatureGrid = ({ onTrustedContactsClick }: FeatureGridProps) => {
         <span className="text-gray-800 text-lg">Support</span>
       </button>
       
-      {/* Locate Me */}
+      {/* Locate Me - Updated icon */}
       <button onClick={openLocateMe} className="feature-card">
-        <MapPin className="feature-icon h-8 w-8" />
+        <Compass className="feature-icon h-8 w-8" />
         <span className="text-gray-800 text-lg">Locate Me</span>
       </button>
       

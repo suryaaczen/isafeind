@@ -64,15 +64,20 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				hershield: {
-					red: '#B02A37',
+					teal: '#09a3a5',
+					blue: {
+						dark: '#024662',
+						medium: '#045c72',
+						light: '#057383'
+					},
 					gradient: {
-						start: '#B02A37',
-						end: '#F9D5DA'
+						start: '#024662',
+						end: '#09a3a5'
 					}
 				}
 			},
 			backgroundImage: {
-				'gradient-hershield': 'linear-gradient(to bottom, #B02A37, #F9D5DA)',
+				'gradient-hershield': 'linear-gradient(to bottom, #024662, #09a3a5)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
