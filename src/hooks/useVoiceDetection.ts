@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from "sonner";
+import { loadContactsFromStorage } from '@/components/trusted-contacts/contactUtils';
+import { getCurrentPosition, formatLocationForSharing } from '@/utils/locationUtils';
 
 interface VoiceDetectionOptions {
   triggerWord: string;
@@ -52,7 +53,7 @@ export const useVoiceDetection = ({
           // Simulated recognition result after a short delay
           setTimeout(() => {
             console.log("Android mock recognition active");
-            toast.info(`Voice detection active (${options.language})`);
+            // Removed toast notification
           }, 1000);
           
           return true;
@@ -67,7 +68,7 @@ export const useVoiceDetection = ({
         },
         requestPermission: async () => {
           console.log("Requesting Android speech recognition permission");
-          toast.info("Requesting microphone permission");
+          // Removed toast notification
           return true;
         }
       };
@@ -122,7 +123,7 @@ export const useVoiceDetection = ({
       setAndroidRecognition(androidSpeechRecognition);
       
       if (androidSpeechRecognition) {
-        // Request permission
+        // Request permission but don't show notification if rejected
         androidSpeechRecognition.requestPermission()
           .then((hasPermission: boolean) => {
             if (hasPermission) {
@@ -179,7 +180,8 @@ export const useVoiceDetection = ({
                 }
               });
             } else {
-              toast.error("Microphone permission denied. Voice detection disabled.");
+              console.log("Microphone permission denied");
+              // Removed toast notification
             }
           })
           .catch((error: any) => {
@@ -218,7 +220,8 @@ export const useVoiceDetection = ({
       recognitionInstance.onerror = (event: any) => {
         console.error("Voice detection error:", event.error);
         if (event.error === 'not-allowed') {
-          toast.error("Microphone access denied. Voice detection disabled.");
+          console.log("Microphone access denied");
+          // Removed toast notification
           setIsListening(false);
         } else {
           // Switch language and restart on error

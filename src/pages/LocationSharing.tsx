@@ -6,29 +6,41 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import LocationDetails from '@/components/location/LocationDetails';
 import LocationSharingActions from '@/components/location/LocationSharingActions';
 import LocationLoadingState from '@/components/location/LocationLoadingState';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import TrustedContactsModal from '@/components/TrustedContactsModal';
 
 const LocationSharing = () => {
   const navigate = useNavigate();
   const { location, loading, error, getLocation } = useLocationTracking();
   const [showContactsModal, setShowContactsModal] = useState(false);
+  const locationUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Create a memoized version of getLocation to prevent infinite re-renders
   const fetchLocation = useCallback(() => {
     getLocation();
   }, [getLocation]);
   
-  // Refresh location every 3 seconds
+  // Refresh location immediately on component mount
   useEffect(() => {
-    fetchLocation(); // Get location immediately
+    // Clear any existing timer
+    if (locationUpdateTimerRef.current) {
+      clearInterval(locationUpdateTimerRef.current);
+    }
     
-    const intervalId = setInterval(() => {
+    // Get location immediately
+    fetchLocation();
+    
+    // Setup timer for periodic updates
+    locationUpdateTimerRef.current = setInterval(() => {
       fetchLocation();
-    }, 3000);
+    }, 2000); // Reduced to 2 seconds for faster updates
     
     // Clean up interval when component unmounts
-    return () => clearInterval(intervalId);
+    return () => {
+      if (locationUpdateTimerRef.current) {
+        clearInterval(locationUpdateTimerRef.current);
+      }
+    };
   }, [fetchLocation]);
 
   return (

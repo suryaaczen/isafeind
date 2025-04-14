@@ -34,7 +34,7 @@ export const useLocationTracking = () => {
       return;
     }
 
-    // Watch position continuously
+    // Watch position continuously with less demanding options
     const id = navigator.geolocation.watchPosition(
       (position) => {
         setLocation({
@@ -52,15 +52,15 @@ export const useLocationTracking = () => {
         setLoading(false);
       },
       { 
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000
+        enableHighAccuracy: false,  // Set to false for faster response
+        maximumAge: 10000,  // Accept positions up to 10 seconds old
+        timeout: 8000  // Increase timeout to 8 seconds
       }
     );
     
     setWatchId(id);
     
-    // Update every 3 seconds using getCurrentPosition for more frequent updates
+    // Update less frequently and with more permissive options
     const interval = window.setInterval(() => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -79,12 +79,12 @@ export const useLocationTracking = () => {
           // Don't set error state here to avoid overriding the watchPosition
         },
         { 
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 3000
+          enableHighAccuracy: false,  // Set to false for faster response
+          maximumAge: 10000,  // Accept positions up to 10 seconds old
+          timeout: 5000  // Shorter timeout for interval updates
         }
       );
-    }, 3000); // 3 seconds interval
+    }, 2000); // 2 seconds interval for more responsive updates
     
     setIntervalId(interval);
   };

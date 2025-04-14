@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useVoiceDetection } from '@/hooks/useVoiceDetection';
 import { Mic, MicOff } from 'lucide-react';
-import { toast } from "sonner";
 import { loadContactsFromStorage } from '@/components/trusted-contacts/contactUtils';
 import { getCurrentPosition, formatLocationForSharing } from '@/utils/locationUtils';
 
@@ -28,7 +27,6 @@ const VoiceEmergencyDetector = ({ enabled = true }: VoiceEmergencyDetectorProps)
         //   text: message
         // });
         
-        toast.success(`Emergency SMS sent to ${phoneNumber}`);
         return true;
       }
       return false;
@@ -73,32 +71,15 @@ ${locationMessage}
       console.error("Error sending emergency SMS:", error);
     }
     
-    // Trigger safety check
-    toast.error(
-      "Emergency Voice Command Detected",
-      {
-        description: "Are you safe?",
-        duration: 60000, // 60 seconds
-        action: {
-          label: "I'm Safe",
-          onClick: () => {
-            if (safetyCheckTimer) {
-              clearTimeout(safetyCheckTimer);
-              setSafetyCheckTimer(null);
-            }
-            setSafetyCheckActive(false);
-            toast.success("Safety confirmed. Emergency canceled.");
-          }
-        }
-      }
-    );
+    // Set a silent safety check
+    console.log("Emergency Voice Command Detected - Safety check started");
     
     // Set a timer for auto-dialing emergency if no response
     setSafetyCheckActive(true);
     
     const timer = setTimeout(() => {
       // Auto-dial emergency number after 1 minute
-      toast.error("No safety confirmation received. Dialing emergency services.");
+      console.log("No safety confirmation received. Dialing emergency services.");
       window.location.href = "tel:100";
       
       // Send location to trusted contacts (similar to SOS function)
