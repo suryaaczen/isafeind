@@ -6,7 +6,7 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import LocationDetails from '@/components/location/LocationDetails';
 import LocationSharingActions from '@/components/location/LocationSharingActions';
 import LocationLoadingState from '@/components/location/LocationLoadingState';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TrustedContactsModal from '@/components/TrustedContactsModal';
 
 const LocationSharing = () => {
@@ -14,17 +14,22 @@ const LocationSharing = () => {
   const { location, loading, error, getLocation } = useLocationTracking();
   const [showContactsModal, setShowContactsModal] = useState(false);
   
+  // Create a memoized version of getLocation to prevent infinite re-renders
+  const fetchLocation = useCallback(() => {
+    getLocation();
+  }, [getLocation]);
+  
   // Refresh location every 3 seconds
   useEffect(() => {
-    getLocation(); // Get location immediately
+    fetchLocation(); // Get location immediately
     
     const intervalId = setInterval(() => {
-      getLocation();
+      fetchLocation();
     }, 3000);
     
     // Clean up interval when component unmounts
     return () => clearInterval(intervalId);
-  }, [getLocation]);
+  }, [fetchLocation]);
 
   return (
     <div className="min-h-screen bg-gradient-hershield">
@@ -47,7 +52,7 @@ const LocationSharing = () => {
           <LocationLoadingState 
             loading={loading}
             error={error}
-            getLocation={getLocation}
+            getLocation={fetchLocation}
           />
           
           {!loading && !error && (
@@ -55,7 +60,7 @@ const LocationSharing = () => {
               <LocationDetails location={location} />
               <LocationSharingActions 
                 location={location} 
-                getLocation={getLocation}
+                getLocation={fetchLocation}
                 onManageContacts={() => setShowContactsModal(true)} 
               />
             </>
