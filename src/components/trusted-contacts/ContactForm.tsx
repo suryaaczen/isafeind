@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Plus, UserCircle, Phone, Download } from 'lucide-react';
+import { UserPlus, UserCircle, Phone, Download } from 'lucide-react';
 
 interface ContactFormProps {
   onAddContact: (name: string, phone: string) => void;
@@ -97,16 +97,16 @@ const ContactForm = ({ onAddContact, onImportContacts, isDuplicatePhone }: Conta
         <Button 
           type="button" 
           onClick={handleSave} 
-          className="w-full bg-hershield-red hover:bg-red-700 text-white"
+          className="w-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center" 
         >
-          <Plus className="mr-2 h-4 w-4" /> Add Contact
+          <UserPlus className="mr-2 h-4 w-4" /> Add Contact
         </Button>
         
         <Button 
           type="button" 
           onClick={onImportContacts} 
-          className="w-full border border-hershield-red text-hershield-red hover:bg-red-50"
           variant="outline"
+          className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center"
         >
           <Download className="mr-2 h-4 w-4" /> Import Contacts
         </Button>

@@ -1,18 +1,30 @@
 
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import LocationDetails from '@/components/location/LocationDetails';
 import LocationSharingActions from '@/components/location/LocationSharingActions';
 import LocationLoadingState from '@/components/location/LocationLoadingState';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TrustedContactsModal from '@/components/TrustedContactsModal';
 
 const LocationSharing = () => {
   const navigate = useNavigate();
   const { location, loading, error, getLocation } = useLocationTracking();
   const [showContactsModal, setShowContactsModal] = useState(false);
+  
+  // Refresh location every 3 seconds
+  useEffect(() => {
+    getLocation(); // Get location immediately
+    
+    const intervalId = setInterval(() => {
+      getLocation();
+    }, 3000);
+    
+    // Clean up interval when component unmounts
+    return () => clearInterval(intervalId);
+  }, [getLocation]);
 
   return (
     <div className="min-h-screen bg-gradient-hershield">
@@ -51,7 +63,7 @@ const LocationSharing = () => {
         </div>
       </div>
       
-      {/* Add Trusted Contacts Modal */}
+      {/* Trusted Contacts Modal */}
       <TrustedContactsModal
         isOpen={showContactsModal}
         onClose={() => setShowContactsModal(false)}
