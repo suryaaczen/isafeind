@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ArrowLeft, CheckCircle, Search } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Search, MapPin } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -38,14 +37,13 @@ type FormValues = z.infer<typeof formSchema>;
 const MonitorMe = () => {
   const navigate = useNavigate();
   const [isRideActive, setIsRideActive] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(0);
-  const [intervalId, setIntervalId] = useState<number | null>(null);
   const [rideHistory, setRideHistory] = useState<RideHistory[]>([]);
   const [toSuggestions, setToSuggestions] = useState<string[]>([]);
   const [showToSuggestions, setShowToSuggestions] = useState(false);
   const { location } = useLocationTracking();
   const [currentLocation, setCurrentLocation] = useState("");
   const [isFetchingAddress, setIsFetchingAddress] = useState(false);
+  const [isAutoAddressFetched, setIsAutoAddressFetched] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -56,18 +54,78 @@ const MonitorMe = () => {
     }
   });
 
-  // Get current location when component mounts
+  // Auto-fetch address whenever location changes
   useEffect(() => {
     if (location.latitude && location.longitude) {
       fetchAddress(location.latitude, location.longitude)
         .then(address => {
-          if (address) setCurrentLocation(address);
+          if (address) {
+            setCurrentLocation(address);
+            
+            // If we haven't auto-populated the "to" field yet, do it now
+            if (!isAutoAddressFetched && !form.getValues('to')) {
+              // For auto-suggestion of destination, we'll use a simplified version
+              // Usually a common destination like "Home" or nearby point of interest
+              setIsAutoAddressFetched(true);
+              
+              // Extract the most relevant part of the address for suggestion
+              const simplifiedAddress = extractRelevantAddressPart(address);
+              if (simplifiedAddress) {
+                searchNearbyPlaces(location.latitude, location.longitude)
+                  .then(places => {
+                    if (places && places.length > 0) {
+                      // Sort places by distance and select a likely destination
+                      setToSuggestions(places);
+                      setShowToSuggestions(true);
+                    }
+                  })
+                  .catch(error => {
+                    console.error("Error fetching nearby places:", error);
+                  });
+              }
+            }
+          }
         })
         .catch(error => {
           console.error("Error fetching address:", error);
         });
     }
-  }, [location.latitude, location.longitude]);
+  }, [location.latitude, location.longitude, form, isAutoAddressFetched]);
+  
+  // Extract the most relevant part of an address (e.g., neighborhood or suburb)
+  const extractRelevantAddressPart = (fullAddress: string): string => {
+    // Simple extraction - in a real app this would be more sophisticated
+    const parts = fullAddress.split(',');
+    if (parts.length > 2) {
+      return parts[0].trim() + ', ' + parts[1].trim();
+    }
+    return parts[0].trim();
+  };
+  
+  // Find nearby places that could be potential destinations
+  const searchNearbyPlaces = async (latitude: number, longitude: number): Promise<string[]> => {
+    try {
+      // Using OpenStreetMap's Nominatim to search for nearby amenities
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=restaurant+cafe+shop&limit=5&lat=${latitude}&lon=${longitude}&addressdetails=1&countrycodes=in`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch nearby places: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map(item => item.display_name || "").filter(name => name !== "");
+      }
+      
+      return [];
+    } catch (error) {
+      console.error("Error searching nearby places:", error);
+      return [];
+    }
+  };
   
   // Load ride history from local storage
   useEffect(() => {
@@ -94,16 +152,7 @@ const MonitorMe = () => {
     
     // Load ride history from Google Sheets as well
     fetchRideHistory();
-  }, []);
-  
-  // Clean up interval on unmount or when ride stops
-  useEffect(() => {
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [intervalId]);
+  }, [form]);
   
   // Function to fetch address from coordinates
   const fetchAddress = async (latitude: number, longitude: number) => {
@@ -127,7 +176,7 @@ const MonitorMe = () => {
     }
   };
   
-  // Function to search for address suggestions using LocationIQ API
+  // Function to search for address suggestions using OpenStreetMap API
   const searchAddress = async (query: string) => {
     if (query.length < 3) {
       setToSuggestions([]);
@@ -157,7 +206,6 @@ const MonitorMe = () => {
       }
     } catch (error) {
       console.error("Error fetching address suggestions:", error);
-      toast.error("Failed to fetch address suggestions");
     }
   };
   
@@ -187,43 +235,12 @@ const MonitorMe = () => {
     return true;
   };
   
-  const sendSafetyCheck = () => {
-    // Request notification permission if not granted
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission();
-    }
-    
-    toast("Safety Check", {
-      description: "Are you safe?",
-      duration: 50000,
-      action: {
-        label: "Yes",
-        onClick: () => {
-          toast.success("Glad you're safe!");
-          setNotificationCount(0); // Reset counter after response
-        }
-      },
-      cancel: {
-        label: "No",
-        onClick: () => {
-          triggerEmergency();
-        }
-      }
-    });
-  };
-  
   const triggerEmergency = () => {
     // Stop the ride
     stopRide();
     
     // Update ride status in history
     updateRideStatus("emergency");
-    
-    // Show alert
-    toast.error("Emergency Alert", {
-      description: "Dialing emergency services...",
-      duration: 5000
-    });
     
     // Dial emergency number
     window.location.href = "tel:100";
@@ -258,14 +275,13 @@ const MonitorMe = () => {
     
     // Set ui active state
     setIsRideActive(true);
-    setNotificationCount(0);
     
     // Then save to Google Sheets
     toast.promise(
       saveToGoogleSheets(newRide),
       {
         loading: "Starting ride monitoring...",
-        success: "Ride monitoring has started! We'll check on you periodically.",
+        success: "Ride monitoring has started!",
         error: "Failed to save ride details to cloud storage. Your ride is still being monitored locally."
       }
     );
@@ -276,7 +292,6 @@ const MonitorMe = () => {
     updateRideStatus("completed");
     
     setIsRideActive(false);
-    setNotificationCount(0);
     
     toast("Ride monitoring stopped", {
       description: "Stay safe!"
@@ -284,6 +299,7 @@ const MonitorMe = () => {
     
     // Reset form for next ride
     form.reset();
+    setIsAutoAddressFetched(false); // Reset for next ride
   };
   
   const updateRideStatus = (status: 'completed' | 'emergency') => {
@@ -424,8 +440,13 @@ const MonitorMe = () => {
         <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
           {currentLocation && (
             <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-sm text-gray-500">Your current location:</p>
-              <p className="font-medium truncate">{isFetchingAddress ? "Fetching location..." : currentLocation}</p>
+              <div className="flex items-start gap-2">
+                <MapPin className="h-5 w-5 text-hershield-teal mt-0.5" />
+                <div>
+                  <p className="text-sm text-gray-500">Your current location:</p>
+                  <p className="font-medium truncate">{isFetchingAddress ? "Fetching location..." : currentLocation}</p>
+                </div>
+              </div>
             </div>
           )}
           
@@ -536,6 +557,19 @@ const MonitorMe = () => {
               <Button type="submit" className="w-full bg-hershield-teal hover:bg-hershield-blue-light">
                 {isRideActive ? "Stop Monitoring" : "Start Monitoring"}
               </Button>
+              
+              {!isRideActive && (
+                <div className="text-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-2 border-hershield-teal text-hershield-teal"
+                    onClick={triggerEmergency}
+                  >
+                    Emergency
+                  </Button>
+                </div>
+              )}
             </form>
           </Form>
         </div>
