@@ -1,16 +1,17 @@
 
 import { toast } from "sonner";
 import { Button } from '@/components/ui/button';
-import { Share2 } from 'lucide-react';
+import { Share2, MapPin, Users } from 'lucide-react';
 import { formatLocationForSharing } from '@/utils/locationUtils';
 import type { LocationData } from '@/hooks/useLocationTracking';
 
 interface LocationSharingActionsProps {
   location: LocationData;
   getLocation: () => void;
+  onManageContacts?: () => void;
 }
 
-const LocationSharingActions = ({ location, getLocation }: LocationSharingActionsProps) => {
+const LocationSharingActions = ({ location, getLocation, onManageContacts }: LocationSharingActionsProps) => {
   const shareLocation = async () => {
     if (!location.latitude || !location.longitude) {
       toast.error("Location data not available");
@@ -70,13 +71,26 @@ const LocationSharingActions = ({ location, getLocation }: LocationSharingAction
 
   return (
     <div className="space-y-3">
-      <Button
-        onClick={getLocation}
-        variant="outline"
-        className="w-full"
-      >
-        Refresh Location
-      </Button>
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          onClick={getLocation}
+          variant="outline"
+          className="w-full"
+        >
+          <MapPin className="mr-2 h-4 w-4" />
+          Refresh Location
+        </Button>
+        
+        <Button
+          onClick={onManageContacts}
+          variant="outline"
+          className="w-full border-hershield-red text-hershield-red hover:bg-red-50"
+        >
+          <Users className="mr-2 h-4 w-4" />
+          Manage Contacts
+        </Button>
+      </div>
+      
       <Button
         onClick={shareLocation}
         className="w-full bg-hershield-red hover:bg-red-700 text-white"

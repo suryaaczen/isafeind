@@ -22,6 +22,7 @@ export const useLocationTracking = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [watchId, setWatchId] = useState<number | null>(null);
+  const [intervalId, setIntervalId] = useState<number | null>(null);
 
   const startWatchingPosition = () => {
     setLoading(true);
@@ -58,12 +59,44 @@ export const useLocationTracking = () => {
     );
     
     setWatchId(id);
+    
+    // Update every 3 seconds using getCurrentPosition for more frequent updates
+    const interval = window.setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            altitude: position.coords.altitude,
+            speed: position.coords.speed,
+            timestamp: position.timestamp
+          });
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error getting location in interval:", error.message);
+          // Don't set error state here to avoid overriding the watchPosition
+        },
+        { 
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 3000
+        }
+      );
+    }, 3000); // 3 seconds interval
+    
+    setIntervalId(interval);
   };
 
   const getLocation = () => {
-    // Clear previous watch
+    // Clear previous watch and interval
     if (watchId !== null) {
       navigator.geolocation.clearWatch(watchId);
+    }
+    
+    if (intervalId !== null) {
+      clearInterval(intervalId);
     }
     
     // Start watching again
@@ -78,6 +111,10 @@ export const useLocationTracking = () => {
     return () => {
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
+      }
+      
+      if (intervalId !== null) {
+        clearInterval(intervalId);
       }
     };
   }, []);
