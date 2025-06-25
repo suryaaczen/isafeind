@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface LocationData {
   latitude: number | null;
@@ -21,10 +21,28 @@ export const useLocationTracking = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [watchId, setWatchId] = useState<number | null>(null);
-  const [intervalId, setIntervalId] = useState<number | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const intervalIdRef = useRef<number | null>(null);
 
-  const startWatchingPosition = () => {
+  const updateLocation = useCallback((position: GeolocationPosition) => {
+    setLocation({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      altitude: position.coords.altitude,
+      speed: position.coords.speed,
+      timestamp: position.timestamp
+    });
+    setLoading(false);
+  }, []);
+
+  const handleError = useCallback((error: GeolocationPositionError) => {
+    setError(`Error getting location: ${error.message}`);
+    setLoading(false);
+    console.error("Geolocation error:", error);
+  }, []);
+
+  const startWatchingPosition = useCallback(() => {
     setLoading(true);
     setError(null);
 
@@ -34,90 +52,72 @@ export const useLocationTracking = () => {
       return;
     }
 
-    // Watch position continuously with less demanding options
+    // Clear any existing watchers
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+    }
+    if (intervalIdRef.current !== null) {
+      clearInterval(intervalIdRef.current);
+    }
+
+    // Watch position continuously
     const id = navigator.geolocation.watchPosition(
-      (position) => {
-        setLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          altitude: position.coords.altitude,
-          speed: position.coords.speed,
-          timestamp: position.timestamp
-        });
-        setLoading(false);
-      },
-      (error) => {
-        setError(`Error getting location: ${error.message}`);
-        setLoading(false);
-      },
+      updateLocation,
+      handleError,
       { 
-        enableHighAccuracy: false,  // Set to false for faster response
-        maximumAge: 10000,  // Accept positions up to 10 seconds old
-        timeout: 8000  // Increase timeout to 8 seconds
+        enableHighAccuracy: false,
+        maximumAge: 10000,
+        timeout: 8000
       }
     );
     
-    setWatchId(id);
+    watchIdRef.current = id;
     
-    // Update less frequently and with more permissive options
+    // Also get position immediately
+    navigator.geolocation.getCurrentPosition(
+      updateLocation,
+      handleError,
+      { 
+        enableHighAccuracy: false,
+        maximumAge: 10000,
+        timeout: 5000
+      }
+    );
+    
+    // Set up interval for periodic updates
     const interval = window.setInterval(() => {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            altitude: position.coords.altitude,
-            speed: position.coords.speed,
-            timestamp: position.timestamp
-          });
-          setLoading(false);
-        },
+        updateLocation,
         (error) => {
           console.error("Error getting location in interval:", error.message);
-          // Don't set error state here to avoid overriding the watchPosition
         },
         { 
-          enableHighAccuracy: false,  // Set to false for faster response
-          maximumAge: 10000,  // Accept positions up to 10 seconds old
-          timeout: 5000  // Shorter timeout for interval updates
+          enableHighAccuracy: false,
+          maximumAge: 10000,
+          timeout: 5000
         }
       );
-    }, 2000); // 2 seconds interval for more responsive updates
+    }, 5000);
     
-    setIntervalId(interval);
-  };
+    intervalIdRef.current = interval;
+  }, [updateLocation, handleError]);
 
-  const getLocation = () => {
-    // Clear previous watch and interval
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
-    }
-    
-    if (intervalId !== null) {
-      clearInterval(intervalId);
-    }
-    
-    // Start watching again
+  const getLocation = useCallback(() => {
     startWatchingPosition();
-  };
+  }, [startWatchingPosition]);
 
   useEffect(() => {
-    // Start watching position when component mounts
     startWatchingPosition();
     
-    // Clean up the watcher when component unmounts
     return () => {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
       }
-      
-      if (intervalId !== null) {
-        clearInterval(intervalId);
+      if (intervalIdRef.current !== null) {
+        clearInterval(intervalIdRef.current);
       }
     };
-  }, []);
+  }, [startWatchingPosition]);
 
   return {
     location,
